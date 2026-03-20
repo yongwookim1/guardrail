@@ -4,7 +4,7 @@ import argparse
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-MODEL_PATH = "../model_cache/HyperCLOVAX-SEED-Think-32B"
+MODEL_PATH = os.path.abspath("../models_cache/HyperCLOVAX-SEED-Think-32B")
 
 ALL_DATASETS = [
     "ToxicChat",
@@ -30,12 +30,6 @@ TRANSLATION_SYSTEM_PROMPT = (
 
 parser = argparse.ArgumentParser(description="Translate benchmark datasets to Korean")
 parser.add_argument(
-    "--dataset",
-    type=str,
-    default=None,
-    help="Dataset name to translate (without .json). Translates all datasets if not specified.",
-)
-parser.add_argument(
     "--benchmark_path",
     type=str,
     default="./data/benchmark/",
@@ -55,7 +49,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-datasets = [args.dataset] if args.dataset else ALL_DATASETS
+datasets = ALL_DATASETS
 
 print(f"Loading model: {MODEL_PATH}")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True)
@@ -87,7 +81,7 @@ def translate_batch(texts: list[str]) -> list[str]:
         return_tensors="pt",
         padding=True,
         truncation=True,
-        max_length=8192,
+        max_length=1024,
     ).to(model.device)
 
     with torch.no_grad():
