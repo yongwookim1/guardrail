@@ -1,7 +1,8 @@
 import os
 import json
 import argparse
-from vllm import LLM, SamplingParams
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 MODEL_PATH = "../model_cache/HyperCLOVAX-SEED-Think-32B"
 
@@ -43,29 +44,68 @@ parser.add_argument(
 parser.add_argument(
     "--batch_size",
     type=int,
-    default=64,
+    default=4,
     help="Number of samples to process per batch",
+)
+parser.add_argument(
+    "--max_new_tokens",
+    type=int,
+    default=4096,
+    help="Maximum number of new tokens to generate",
 )
 args = parser.parse_args()
 
 datasets = [args.dataset] if args.dataset else ALL_DATASETS
 
 print(f"Loading model: {MODEL_PATH}")
-vllm_model = LLM(
-    model=MODEL_PATH,
-    gpu_memory_utilization=0.80,
-    max_num_seqs=128,
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_PATH,
+    torch_dtype=torch.bfloat16,
+    device_map="auto",
     trust_remote_code=True,
 )
-sampling_params = SamplingParams(temperature=0.0, top_p=1.0, max_tokens=4096)
+model.eval()
 
 
-def build_translation_prompt(text: str) -> str:
-    return (
-        f"<|im_start|>system\n{TRANSLATION_SYSTEM_PROMPT}<|im_end|>\n"
-        f"<|im_start|>user\n{text}<|im_end|>\n"
-        f"<|im_start|>assistant\n"
-    )
+def translate_batch(texts: list[str]) -> list[str]:
+    messages_batch = [
+        [
+            {"role": "system", "content": TRANSLATION_SYSTEM_PROMPT},
+            {"role": "user", "content": text},
+        ]
+        for text in texts
+    ]
+
+    prompts = [
+        tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        for messages in messages_batch
+    ]
+
+    inputs = tokenizer(
+        prompts,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=8192,
+    ).to(model.device)
+
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=args.max_new_tokens,
+            do_sample=False,
+            pad_token_id=tokenizer.eos_token_id,
+        )
+
+    # Decode only the newly generated tokens
+    input_len = inputs["input_ids"].shape[1]
+    results = []
+    for output in outputs:
+        generated = output[input_len:]
+        text = tokenizer.decode(generated, skip_special_tokens=True).strip()
+        results.append(text)
+    return results
 
 
 for data_name in datasets:
@@ -79,36 +119,22 @@ for data_name in datasets:
 
     print(f"[{data_name}] Translating {len(data)} samples...")
 
-    # Collect all inputs that need translation
-    inputs_to_translate = []
-    for sample in data:
-        if "input" in sample:
-            inputs_to_translate.append(sample["input"])
-        else:
-            inputs_to_translate.append("")
+    inputs_to_translate = [sample.get("input", "") for sample in data]
 
-    # Build prompts
-    prompts = [build_translation_prompt(text) for text in inputs_to_translate]
-
-    # Generate translations in batches
     translated_texts = []
-    for start in range(0, len(prompts), args.batch_size):
-        batch = prompts[start : start + args.batch_size]
-        outputs = vllm_model.generate(batch, sampling_params)
-        for out in outputs:
-            translated_texts.append(out.outputs[0].text.strip())
-        print(f"  [{data_name}] {min(start + args.batch_size, len(prompts))}/{len(prompts)} done")
+    for start in range(0, len(inputs_to_translate), args.batch_size):
+        batch = inputs_to_translate[start : start + args.batch_size]
+        translated_texts.extend(translate_batch(batch))
+        print(f"  [{data_name}] {min(start + args.batch_size, len(inputs_to_translate))}/{len(inputs_to_translate)} done")
 
-    # Build translated dataset
     translated_data = []
     for sample, translated_input in zip(data, translated_texts):
         new_sample = dict(sample)
         if "input" in new_sample:
-            new_sample["input"] = translated_input
             new_sample["input_en"] = sample["input"]
+            new_sample["input"] = translated_input
         translated_data.append(new_sample)
 
-    # Save
     dst_path = os.path.join(args.benchmark_path, f"{data_name}_ko.json")
     with open(dst_path, "w", encoding="utf-8") as f:
         json.dump(translated_data, f, ensure_ascii=False, indent=4)
