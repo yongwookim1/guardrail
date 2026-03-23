@@ -23,7 +23,7 @@ dependencies:
     - vllm==0.18.0
 
     # Qwen-VL utilities
-    - qwen-vl-utils==0.0.8
+    - qwen-vl-utils==0.0.14
 
     # HuggingFace datasets
     - datasets
