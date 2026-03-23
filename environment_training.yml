@@ -1,0 +1,57 @@
+name: gr-train
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    # PyTorch (install manually with CUDA version matching your system)
+    # e.g. pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+    - torch>=2.4.0
+    - torchvision>=0.19.0
+    - torchaudio>=2.4.0
+
+    # --- EasyR1 (RL training with verl) ---
+    - accelerate
+    - codetiming
+    - datasets
+    - liger-kernel
+    - mathruler
+    - numpy
+    - omegaconf
+    - pandas
+    - peft
+    - pillow
+    - pyarrow>=15.0.0
+    - pylatexenc
+    - qwen-vl-utils
+    - ray[default]
+    - tensordict
+    - torchdata
+    - transformers>=4.54.0,<5.0.0
+    - vllm>=0.8.0
+    - wandb
+    # flash-attn>=2.4.3 requires compilation:
+    # pip install flash-attn>=2.4.3 --no-build-isolation
+
+    # --- LLaMA-Factory (SFT / R-SFT) ---
+    - trl>=0.18.0
+    - einops
+    - scipy
+    - sentencepiece
+    - tiktoken
+    - safetensors
+    - fire
+    - packaging
+    - protobuf
+    - pyyaml
+    - pydantic
+    - av>=10.0.0
+
+    # --- Data synthesis scripts (train/) ---
+    - anthropic        # llm.py uses Anthropic API
+    - openai           # llm.py uses OpenAI API
+    - tqdm

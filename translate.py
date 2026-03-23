@@ -2,9 +2,9 @@ import os
 import json
 import argparse
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
 
-MODEL_PATH = os.path.abspath("../models_cache/HyperCLOVAX-SEED-Think-32B")
+MODEL_PATH = "K-intelligence/Midm-2.0-Base-Instruct"
 
 ALL_DATASETS = [
     "ToxicChat",
@@ -18,8 +18,6 @@ ALL_DATASETS = [
     "BeaverTails",
     "XSTestReponseHarmful",
     "WildGuardTestResponse",
-    "HarmImageTest",
-    "SPA_VL_Eval",
 ]
 
 TRANSLATION_SYSTEM_PROMPT = (
@@ -52,13 +50,15 @@ args = parser.parse_args()
 datasets = ALL_DATASETS
 
 print(f"Loading model: {MODEL_PATH}")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True, padding_side="left")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_PATH,
     torch_dtype=torch.bfloat16,
     device_map="auto",
     trust_remote_code=True,
 )
+generation_config = GenerationConfig.from_pretrained(MODEL_PATH)
+generation_config.max_new_tokens = args.max_new_tokens
 model.eval()
 
 
@@ -84,11 +84,11 @@ def translate_batch(texts: list[str]) -> list[str]:
         max_length=1024,
     ).to(model.device)
 
+    inputs.pop("token_type_ids", None)
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
-            max_new_tokens=args.max_new_tokens,
-            do_sample=False,
+            generation_config=generation_config,
             pad_token_id=tokenizer.eos_token_id,
         )
 
@@ -134,5 +134,57 @@ for data_name in datasets:
         json.dump(translated_data, f, ensure_ascii=False, indent=4)
 
     print(f"[{data_name}] Saved to {dst_path}")
+
+# SPA_VL_Eval: translate human text and AI response inside messages structure
+spa_path = os.path.join(args.benchmark_path, "SPA_VL_Eval.json")
+if os.path.exists(spa_path):
+    with open(spa_path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    print(f"[SPA_VL_Eval] Translating {len(data)} samples...")
+
+    def extract_spa_texts(sample):
+        content = sample["messages"][0]["content"]
+        human_start = content.find("<image>") + len("<image>")
+        ai_marker = "\n\nAI assistant:\n"
+        ai_start = content.find(ai_marker) + len(ai_marker)
+        human_text = content[human_start:content.find(ai_marker)].strip()
+        ai_text = content[ai_start:].strip()
+        return human_text, ai_text
+
+    human_texts = [extract_spa_texts(s)[0] for s in data]
+    ai_texts = [extract_spa_texts(s)[1] for s in data]
+
+    translated_human = []
+    for start in range(0, len(human_texts), args.batch_size):
+        batch = human_texts[start:start + args.batch_size]
+        translated_human.extend(translate_batch(batch))
+        print(f"  [SPA_VL_Eval human] {min(start + args.batch_size, len(human_texts))}/{len(human_texts)} done")
+
+    translated_ai = []
+    for start in range(0, len(ai_texts), args.batch_size):
+        batch = ai_texts[start:start + args.batch_size]
+        translated_ai.extend(translate_batch(batch))
+        print(f"  [SPA_VL_Eval ai] {min(start + args.batch_size, len(ai_texts))}/{len(ai_texts)} done")
+
+    translated_data = []
+    for sample, h_ko, a_ko in zip(data, translated_human, translated_ai):
+        new_sample = dict(sample)
+        content = sample["messages"][0]["content"]
+        human_start = content.find("<image>") + len("<image>")
+        ai_marker = "\n\nAI assistant:\n"
+        ai_start = content.find(ai_marker) + len(ai_marker)
+        new_content = (
+            content[:human_start] + " " + h_ko + "\n"
+            + ai_marker + a_ko + "\n"
+        )
+        new_sample["messages"] = [{"content": new_content, "role": "user"}, sample["messages"][1]]
+        translated_data.append(new_sample)
+
+    dst_path = os.path.join(args.benchmark_path, "SPA_VL_Eval_ko.json")
+    with open(dst_path, "w", encoding="utf-8") as f:
+        json.dump(translated_data, f, ensure_ascii=False, indent=4)
+
+    print(f"[SPA_VL_Eval] Saved to {dst_path}")
 
 print("Translation complete.")

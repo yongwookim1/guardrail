@@ -1,13 +1,18 @@
+import os
 import pandas as pd
 from sklearn.metrics import f1_score
 
 
 folders = ["./data/test/GuardReasoner-VL-7B/", "./data/test/GuardReasoner-VL-Eco-7B/", "./data/test/GuardReasoner-VL-3B/", "./data/test/GuardReasoner-VL-Eco-3B/"]
+folders = [f for f in folders if os.path.exists(f)]
 f1_list = []
 
 def cal_f1(folder="./data/test/7B/", dataset="ToxicChat", key=None):
 
     file_name = folder + dataset + "/generated_predictions.jsonl"
+    if not os.path.exists(file_name):
+        f1_list.append({"f1": None, "weight": 0})
+        return None
     pred = pd.read_json(file_name, lines=True)
 
     labels = []
@@ -56,14 +61,15 @@ def cal_f1(folder="./data/test/7B/", dataset="ToxicChat", key=None):
 
 
 def cal_weighted_f1(f1_list, clear=True):
-    
+
     sum = 0
     weighted_f1 = 0
-    for i in f1_list:
+    valid = [i for i in f1_list if i["f1"] is not None]
+    for i in valid:
         weighted_f1 += i["f1"] * i["weight"]
         sum += i["weight"]
-    weighted_f1 /= sum
-    
+    weighted_f1 = weighted_f1 / sum if sum > 0 else None
+
     if clear:
         f1_list.clear()
     return weighted_f1
@@ -77,19 +83,31 @@ def reverse(gt_example):
     return wrong_result
         
 
+def fmt(val):
+    return f"{val:<20.2f}" if val is not None else f"{'N/A':<20}"
+
+def get_ko_folder(folder):
+    return folder.rstrip("/") + "_ko/"
+
 for folder in folders:
-    print("Performance of GuardReasoner-VL ({}):".format(folder.split("/")[-2]))
-    
+    ko_folder = get_ko_folder(folder)
+    has_ko = os.path.exists(ko_folder)
+    model_name = folder.split("/")[-2]
+
+    print("Performance of GuardReasoner-VL ({}):".format(model_name))
+
     print("-"*180)
     print("prompt harmfulness detection task".center(180))
     print("-"*180)
-    print("{:<20} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20}".format(
-    "ToxicChat", "HarmBenchPrompt", "OpenAIModeration", "AegisSafetyTest", "SimpleSafetyTests", "WildGuardTest", "Average (Text)", "HarmImageTest", "SPA-VL-Eval", "Average (All)"))
+    header = "{:<20} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20}".format(
+        "ToxicChat", "HarmBenchPrompt", "OpenAIModeration", "AegisSafetyTest", "SimpleSafetyTests", "WildGuardTest", "Average (Text)", "HarmImageTest", "SPA-VL-Eval", "Average (All)")
+    print(header)
+
     with open("result.csv", "a+") as file:
-        print("Performance of GuardReasoner-VL ({}):".format(folder.split("/")[-2]), file=file)
+        print("Performance of GuardReasoner-VL ({}):".format(model_name), file=file)
         print("{:<20},{:<20},{:<20},{:<20},{:<20},{:<20},{:<20},{:<20},{:<20},{:<20}".format(
-        "ToxicChat", "HarmBenchPrompt", "OpenAIModeration", "AegisSafetyTest", "SimpleSafetyTests", "WildGuardTest", "Average (Text)", "HarmImageTest", "SPA-VL-Eval", "Average (All)"), file=file)
-        file.close()
+            "ToxicChat", "HarmBenchPrompt", "OpenAIModeration", "AegisSafetyTest", "SimpleSafetyTests", "WildGuardTest", "Average (Text)", "HarmImageTest", "SPA-VL-Eval", "Average (All)"), file=file)
+
     toxic_chat_f1 = cal_f1(folder, "ToxicChat")
     harm_bench_prompt_f1 = cal_f1(folder, "HarmBenchPrompt")
     openai_moderation_f1 = cal_f1(folder, "OpenAIModeration")
@@ -100,42 +118,64 @@ for folder in folders:
     harm_image_test_f1 = cal_f1(folder, "HarmImageTest")
     sap_vl_eval_f1_prompt = cal_f1(folder, "SPA_VL_Eval")
     weighted_f1_prompt = cal_weighted_f1(f1_list, clear=True)
-    print("{:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f}".format(
-    toxic_chat_f1, harm_bench_prompt_f1, openai_moderation_f1, aegis_safety_test_f1, simple_safety_tests_f1, wild_guard_test_prompt_f1, weighted_f1_prompt_text, harm_image_test_f1, sap_vl_eval_f1_prompt, weighted_f1_prompt))
-    
+    print("[EN] " + " ".join([fmt(v) for v in [toxic_chat_f1, harm_bench_prompt_f1, openai_moderation_f1, aegis_safety_test_f1, simple_safety_tests_f1, wild_guard_test_prompt_f1, weighted_f1_prompt_text, harm_image_test_f1, sap_vl_eval_f1_prompt, weighted_f1_prompt]]))
+
     with open("result.csv", "a+") as file:
-        print("{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f}".format(
-            toxic_chat_f1, harm_bench_prompt_f1, openai_moderation_f1, aegis_safety_test_f1, simple_safety_tests_f1, wild_guard_test_prompt_f1, weighted_f1_prompt_text, harm_image_test_f1, sap_vl_eval_f1_prompt, weighted_f1_prompt), file=file)
-        file.close()
+        print("[EN]," + ",".join([fmt(v).strip() for v in [toxic_chat_f1, harm_bench_prompt_f1, openai_moderation_f1, aegis_safety_test_f1, simple_safety_tests_f1, wild_guard_test_prompt_f1, weighted_f1_prompt_text, harm_image_test_f1, sap_vl_eval_f1_prompt, weighted_f1_prompt]]), file=file)
+
+    if has_ko:
+        toxic_chat_f1_ko = cal_f1(ko_folder, "ToxicChat")
+        harm_bench_prompt_f1_ko = cal_f1(ko_folder, "HarmBenchPrompt")
+        openai_moderation_f1_ko = cal_f1(ko_folder, "OpenAIModeration")
+        aegis_safety_test_f1_ko = cal_f1(ko_folder, "AegisSafetyTest")
+        simple_safety_tests_f1_ko = cal_f1(ko_folder, "SimpleSafetyTests")
+        wild_guard_test_prompt_f1_ko = cal_f1(ko_folder, "WildGuardTestPrompt")
+        weighted_f1_prompt_text_ko = cal_weighted_f1(f1_list, clear=False)
+        harm_image_test_f1_ko = cal_f1(ko_folder, "HarmImageTest")
+        sap_vl_eval_f1_prompt_ko = cal_f1(ko_folder, "SPA_VL_Eval")
+        weighted_f1_prompt_ko = cal_weighted_f1(f1_list, clear=True)
+        print("[KO] " + " ".join([fmt(v) for v in [toxic_chat_f1_ko, harm_bench_prompt_f1_ko, openai_moderation_f1_ko, aegis_safety_test_f1_ko, simple_safety_tests_f1_ko, wild_guard_test_prompt_f1_ko, weighted_f1_prompt_text_ko, harm_image_test_f1_ko, sap_vl_eval_f1_prompt_ko, weighted_f1_prompt_ko]]))
+        with open("result.csv", "a+") as file:
+            print("[KO]," + ",".join([fmt(v).strip() for v in [toxic_chat_f1_ko, harm_bench_prompt_f1_ko, openai_moderation_f1_ko, aegis_safety_test_f1_ko, simple_safety_tests_f1_ko, wild_guard_test_prompt_f1_ko, weighted_f1_prompt_text_ko, harm_image_test_f1_ko, sap_vl_eval_f1_prompt_ko, weighted_f1_prompt_ko]]), file=file)
+
     print("-"*180, end='\n\n\n')
-    
+
     print("-"*130)
     print("response harmfulness detection task".center(130))
     print("-"*130)
     print("{:<20} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20}".format(
-    "HarmBenchResponse", "SafeRLHF", "BeaverTails", "XSTestReponseHarmful", "WildGuardTest", "Average (Text)", "SPA-VL-Eval", "Average (All)"))
-    
+        "HarmBenchResponse", "SafeRLHF", "BeaverTails", "XSTestReponseHarmful", "WildGuardTest", "Average (Text)", "SPA-VL-Eval", "Average (All)"))
+
     with open("result.csv", "a+") as file:
         print("{:<20},{:<20},{:<20},{:<20},{:<20},{:<20},{:<20},{:<20}".format(
             "HarmBenchResponse", "SafeRLHF", "BeaverTails", "XSTestReponseHarmful", "WildGuardTest", "Average (Text)", "SPA-VL-Eval", "Average (All)"), file=file)
-        file.close()
-        
+
     harm_bench_response_f1 = cal_f1(folder, "HarmBenchResponse")
     safe_rlhf_response_f1 = cal_f1(folder, "SafeRLHF")
     beaver_tails_response_f1 = cal_f1(folder, "BeaverTails")
     xstest_reponse_harmful_f1 = cal_f1(folder, "XSTestReponseHarmful")
     wild_guard_test_reponse_f1 = cal_f1(folder, "WildGuardTestResponse")
-    weighted_f1_response_text= cal_weighted_f1(f1_list, clear=False)
+    weighted_f1_response_text = cal_weighted_f1(f1_list, clear=False)
     sap_vl_eval_f1_response = cal_f1(folder, "SPA_VL_Eval", key="res")
     weighted_f1_response = cal_weighted_f1(f1_list, clear=True)
-    print("{:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f}".format(
-    harm_bench_response_f1, safe_rlhf_response_f1, beaver_tails_response_f1, xstest_reponse_harmful_f1, wild_guard_test_reponse_f1, weighted_f1_response_text, sap_vl_eval_f1_response, weighted_f1_response))
-    
+    print("[EN] " + " ".join([fmt(v) for v in [harm_bench_response_f1, safe_rlhf_response_f1, beaver_tails_response_f1, xstest_reponse_harmful_f1, wild_guard_test_reponse_f1, weighted_f1_response_text, sap_vl_eval_f1_response, weighted_f1_response]]))
+
     with open("result.csv", "a+") as file:
-        print("{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f},{:<20.2f}".format(
-            harm_bench_response_f1, safe_rlhf_response_f1, beaver_tails_response_f1, xstest_reponse_harmful_f1, wild_guard_test_reponse_f1, weighted_f1_response_text, sap_vl_eval_f1_response, weighted_f1_response), file=file)
-        print(file=file)
-        file.close()
-        
+        print("[EN]," + ",".join([fmt(v).strip() for v in [harm_bench_response_f1, safe_rlhf_response_f1, beaver_tails_response_f1, xstest_reponse_harmful_f1, wild_guard_test_reponse_f1, weighted_f1_response_text, sap_vl_eval_f1_response, weighted_f1_response]]), file=file)
+
+    if has_ko:
+        harm_bench_response_f1_ko = cal_f1(ko_folder, "HarmBenchResponse")
+        safe_rlhf_response_f1_ko = cal_f1(ko_folder, "SafeRLHF")
+        beaver_tails_response_f1_ko = cal_f1(ko_folder, "BeaverTails")
+        xstest_reponse_harmful_f1_ko = cal_f1(ko_folder, "XSTestReponseHarmful")
+        wild_guard_test_reponse_f1_ko = cal_f1(ko_folder, "WildGuardTestResponse")
+        weighted_f1_response_text_ko = cal_weighted_f1(f1_list, clear=False)
+        sap_vl_eval_f1_response_ko = cal_f1(ko_folder, "SPA_VL_Eval", key="res")
+        weighted_f1_response_ko = cal_weighted_f1(f1_list, clear=True)
+        print("[KO] " + " ".join([fmt(v) for v in [harm_bench_response_f1_ko, safe_rlhf_response_f1_ko, beaver_tails_response_f1_ko, xstest_reponse_harmful_f1_ko, wild_guard_test_reponse_f1_ko, weighted_f1_response_text_ko, sap_vl_eval_f1_response_ko, weighted_f1_response_ko]]))
+        with open("result.csv", "a+") as file:
+            print("[KO]," + ",".join([fmt(v).strip() for v in [harm_bench_response_f1_ko, safe_rlhf_response_f1_ko, beaver_tails_response_f1_ko, xstest_reponse_harmful_f1_ko, wild_guard_test_reponse_f1_ko, weighted_f1_response_text_ko, sap_vl_eval_f1_response_ko, weighted_f1_response_ko]]), file=file)
+            print(file=file)
+
     print("-"*130, end='\n\n\n')
     

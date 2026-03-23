@@ -1,0 +1,39 @@
+name: gr-inf
+
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    # PyTorch (install manually with CUDA version matching your system)
+    # e.g. pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+    - torch==2.10.0
+    - torchvision
+
+    # Transformers ecosystem (Qwen2.5-VL)
+    - transformers>=4.49.0
+    - accelerate
+    - tokenizers
+
+    # vLLM for fast inference (enforce_eager=True used in generate.py for compatibility)
+    - vllm==0.18.0
+
+    # Qwen-VL utilities
+    - qwen-vl-utils==0.0.8
+
+    # HuggingFace datasets
+    - datasets
+    - huggingface-hub
+
+    # Data processing & evaluation
+    - pandas
+    - scikit-learn
+    - numpy
+    - pillow
+
+    # Flash attention (optional, recommended for speed)
+    # pip install flash-attn --no-build-isolation

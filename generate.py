@@ -11,19 +11,22 @@ from qwen_vl_utils import process_vision_info
 parser = argparse.ArgumentParser(description="GuardReasoner-VL Inference")
 parser.add_argument("--model_path", type=str, default="yueliu1999/GuardReasoner-VL-7B", help="model path")
 parser.add_argument("--benchmark_path", type=str, default="./data/benchmark/", help="benchmark path")
+parser.add_argument("--suffix", type=str, default="", help="filename suffix for benchmark files (e.g. _ko for translated)")
 args = parser.parse_args()
 
 
-SAVE_PATH = f"./data/test/{args.model_path.split('/')[-1]}"
+SAVE_PATH = f"./data/test/{args.model_path.split('/')[-1]}{args.suffix}"
 
-vllm_model = LLM(model=args.model_path, gpu_memory_utilization=0.70, max_num_seqs=256, limit_mm_per_prompt={"image": 10, "video": 10})
+vllm_model = LLM(model=args.model_path, gpu_memory_utilization=0.70, max_num_seqs=256, limit_mm_per_prompt={"image": 10, "video": 10}, enforce_eager=True)
 sampling_params = SamplingParams(temperature=0., top_p=1.0, max_tokens=4096)
 processor = AutoProcessor.from_pretrained(args.model_path)
 
 # text benchmark
 # prompt harmfulness detection 6 datasets
 for idx, data_name in enumerate(["ToxicChat", "HarmBenchPrompt", "OpenAIModeration", "AegisSafetyTest", "SimpleSafetyTests", "WildGuardTestPrompt"]):
-    with open(f"{args.benchmark_path}{data_name}.json") as file:
+    if not os.path.exists(f"{args.benchmark_path}{data_name}{args.suffix}.json"):
+        continue
+    with open(f"{args.benchmark_path}{data_name}{args.suffix}.json") as file:
         data = json.load(file)
 
     input_list = []
@@ -120,7 +123,9 @@ for idx, data_name in enumerate(["ToxicChat", "HarmBenchPrompt", "OpenAIModerati
 # text benchmark
 # response harmfulness detection 5 datasets
 for idx, data_name in enumerate(["HarmBenchResponse", "SafeRLHF", "BeaverTails", "XSTestReponseHarmful", "WildGuardTestResponse"]):
-    with open(f"{args.benchmark_path}{data_name}.json") as file:
+    if not os.path.exists(f"{args.benchmark_path}{data_name}{args.suffix}.json"):
+        continue
+    with open(f"{args.benchmark_path}{data_name}{args.suffix}.json") as file:
         data = json.load(file)
 
 
@@ -218,9 +223,11 @@ HarmfulImageTest = GuardReasoner_VLTest.filter(lambda example: example['label'] 
 SPA_VL_Eval = GuardReasoner_VLTest.filter(lambda example: example['label'] == 1)
 
 # for image benchmark
-# prompt harmfulness detection 
+# prompt harmfulness detection
 for idx, data_name in enumerate(["HarmImageTest"]):
-    with open(f"{args.benchmark_path}{data_name}.json") as file:
+    if not os.path.exists(f"{args.benchmark_path}{data_name}{args.suffix}.json"):
+        continue
+    with open(f"{args.benchmark_path}{data_name}{args.suffix}.json") as file:
         data = json.load(file)
 
     input_list = []
@@ -336,7 +343,9 @@ for idx, data_name in enumerate(["HarmImageTest"]):
 # prompt harmfulness detection
 # response harmfulness detection
 for idx, data_name in enumerate(["SPA_VL_Eval"]):
-    with open(f"{args.benchmark_path}{data_name}.json", encoding="utf-8") as file:
+    if not os.path.exists(f"{args.benchmark_path}{data_name}{args.suffix}.json"):
+        continue
+    with open(f"{args.benchmark_path}{data_name}{args.suffix}.json", encoding="utf-8") as file:
         data = json.load(file)
         
 
