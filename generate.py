@@ -218,9 +218,14 @@ for idx, data_name in enumerate(["HarmBenchResponse", "SafeRLHF", "BeaverTails",
             json_line = json.dumps(item, ensure_ascii=False)
             f.write(json_line + '\n')
 
-GuardReasoner_VLTest = load_dataset("yueliu1999/GuardReasoner-VLTest")
-HarmfulImageTest = GuardReasoner_VLTest.filter(lambda example: example['label'] == 0)
-SPA_VL_Eval = GuardReasoner_VLTest.filter(lambda example: example['label'] == 1)
+_need_image_dataset = any(
+    os.path.exists(f"{args.benchmark_path}{name}{args.suffix}.json")
+    for name in ["HarmImageTest", "SPA_VL_Eval"]
+)
+if _need_image_dataset:
+    GuardReasoner_VLTest = load_dataset("yueliu1999/GuardReasoner-VLTest")
+    HarmfulImageTest = GuardReasoner_VLTest.filter(lambda example: example['label'] == 0)
+    SPA_VL_Eval = GuardReasoner_VLTest.filter(lambda example: example['label'] == 1)
 
 # for image benchmark
 # prompt harmfulness detection

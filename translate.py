@@ -28,6 +28,12 @@ TRANSLATION_SYSTEM_PROMPT = (
 
 parser = argparse.ArgumentParser(description="Translate benchmark datasets to Korean")
 parser.add_argument(
+    "--model_path",
+    type=str,
+    default=MODEL_PATH,
+    help="Path to translation model",
+)
+parser.add_argument(
     "--benchmark_path",
     type=str,
     default="./data/benchmark/",
@@ -50,14 +56,14 @@ args = parser.parse_args()
 datasets = ALL_DATASETS
 
 print(f"Loading model: {MODEL_PATH}")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True, padding_side="left")
+tokenizer = AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True, padding_side="left")
 model = AutoModelForCausalLM.from_pretrained(
-    MODEL_PATH,
+    args.model_path,
     torch_dtype=torch.bfloat16,
     device_map="auto",
     trust_remote_code=True,
 )
-generation_config = GenerationConfig.from_pretrained(MODEL_PATH)
+generation_config = GenerationConfig.from_pretrained(args.model_path)
 generation_config.max_new_tokens = args.max_new_tokens
 model.eval()
 
