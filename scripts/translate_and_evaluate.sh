@@ -9,14 +9,14 @@ export HF_HUB_OFFLINE=1
 find_model() { find /home /data /scratch 2>/dev/null -type d -name "$1" | head -1; }
 
 MODEL_PATH=${1:-$(find_model "GuardReasoner-VL*")}
-QWEN_PATH=${4:-$(find_model "Qwen3-8B")}
-QWEN_PATH=${QWEN_PATH:-"Qwen/Qwen3-8B"}
+MIDM_PATH=${4:-$(find_model "Midm-2.0-Base-Instruct")}
+MIDM_PATH=${MIDM_PATH:-"K-intelligence/Midm-2.0-Base-Instruct"}
 
 [ -z "$MODEL_PATH" ] && { echo "ERROR: Could not find GuardReasoner model."; exit 1; }
 
 # Step 1: Translate to Korean
 CUDA_VISIBLE_DEVICES=$GPUS python translate.py \
-    --model_path $QWEN_PATH \
+    --model_path $MIDM_PATH \
     --benchmark_path $BENCHMARK_PATH
 
 # Step 2: KO inference
