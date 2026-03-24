@@ -4,7 +4,7 @@ import argparse
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
 
-MODEL_PATH = "K-intelligence/Midm-2.0-Base-Instruct"
+MODEL_PATH = "Qwen/Qwen3.5-9B"
 
 ALL_DATASETS = [
     "ToxicChat",
