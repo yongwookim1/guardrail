@@ -1,8 +1,8 @@
 import os
 import json
 import argparse
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from vllm import LLM, SamplingParams
+from transformers import AutoTokenizer
 
 MODEL_PATH = "Qwen/Qwen3-8B"
 
@@ -40,12 +40,6 @@ parser.add_argument(
     help="Path to benchmark directory",
 )
 parser.add_argument(
-    "--batch_size",
-    type=int,
-    default=4,
-    help="Number of samples to process per batch",
-)
-parser.add_argument(
     "--max_new_tokens",
     type=int,
     default=4096,
@@ -53,57 +47,36 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-datasets = ALL_DATASETS
-
 print(f"Loading model: {args.model_path}")
-tokenizer = AutoTokenizer.from_pretrained(args.model_path, padding_side="left")
-model = AutoModelForCausalLM.from_pretrained(
-    args.model_path,
-    torch_dtype="auto",
-    device_map="auto",
-)
-model.eval()
+tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+vllm_model = LLM(model=args.model_path, gpu_memory_utilization=0.70, max_num_seqs=256)
+sampling_params = SamplingParams(temperature=0., top_p=1.0, max_tokens=args.max_new_tokens)
 
 
-def translate_batch(texts: list[str]) -> list[str]:
-    messages_batch = [
-        [
+def build_prompts(texts: list[str]) -> list[str]:
+    prompts = []
+    for text in texts:
+        messages = [
             {"role": "system", "content": TRANSLATION_SYSTEM_PROMPT},
             {"role": "user", "content": text},
         ]
-        for text in texts
-    ]
-
-    prompts = [
-        tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, enable_thinking=False)
-        for messages in messages_batch
-    ]
-
-    inputs = tokenizer(
-        prompts,
-        return_tensors="pt",
-        padding=True,
-        truncation=False,
-    ).to(model.device)
-
-    inputs.pop("token_type_ids", None)
-    input_len = inputs["input_ids"].shape[1]
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=args.max_new_tokens,
-            do_sample=False,
-            pad_token_id=tokenizer.eos_token_id,
+        prompt = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False,
         )
+        prompts.append(prompt)
+    return prompts
 
-    # Decode only the newly generated tokens
-    results = []
-    for output in outputs:
-        generated = output[input_len:]
-        text = tokenizer.decode(generated, skip_special_tokens=True).strip()
-        results.append(text)
-    return results
 
+def translate_batch(texts: list[str]) -> list[str]:
+    prompts = build_prompts(texts)
+    outputs = vllm_model.generate(prompts, sampling_params=sampling_params)
+    return [output.outputs[0].text.strip() for output in outputs]
+
+
+datasets = ALL_DATASETS
 
 for data_name in datasets:
     src_path = os.path.join(args.benchmark_path, f"{data_name}.json")
@@ -117,12 +90,8 @@ for data_name in datasets:
     print(f"[{data_name}] Translating {len(data)} samples...")
 
     inputs_to_translate = [sample.get("input", "") for sample in data]
-
-    translated_texts = []
-    for start in range(0, len(inputs_to_translate), args.batch_size):
-        batch = inputs_to_translate[start : start + args.batch_size]
-        translated_texts.extend(translate_batch(batch))
-        print(f"  [{data_name}] {min(start + args.batch_size, len(inputs_to_translate))}/{len(inputs_to_translate)} done")
+    translated_texts = translate_batch(inputs_to_translate)
+    print(f"  [{data_name}] {len(inputs_to_translate)}/{len(inputs_to_translate)} done")
 
     translated_data = []
     for sample, translated_input in zip(data, translated_texts):
@@ -137,6 +106,7 @@ for data_name in datasets:
         json.dump(translated_data, f, ensure_ascii=False, indent=4)
 
     print(f"[{data_name}] Saved to {dst_path}")
+
 
 # SPA_VL_Eval: translate human text and AI response inside messages structure
 spa_path = os.path.join(args.benchmark_path, "SPA_VL_Eval.json")
@@ -158,17 +128,11 @@ if os.path.exists(spa_path):
     human_texts = [extract_spa_texts(s)[0] for s in data]
     ai_texts = [extract_spa_texts(s)[1] for s in data]
 
-    translated_human = []
-    for start in range(0, len(human_texts), args.batch_size):
-        batch = human_texts[start:start + args.batch_size]
-        translated_human.extend(translate_batch(batch))
-        print(f"  [SPA_VL_Eval human] {min(start + args.batch_size, len(human_texts))}/{len(human_texts)} done")
+    translated_human = translate_batch(human_texts)
+    print(f"  [SPA_VL_Eval human] {len(human_texts)}/{len(human_texts)} done")
 
-    translated_ai = []
-    for start in range(0, len(ai_texts), args.batch_size):
-        batch = ai_texts[start:start + args.batch_size]
-        translated_ai.extend(translate_batch(batch))
-        print(f"  [SPA_VL_Eval ai] {min(start + args.batch_size, len(ai_texts))}/{len(ai_texts)} done")
+    translated_ai = translate_batch(ai_texts)
+    print(f"  [SPA_VL_Eval ai] {len(ai_texts)}/{len(ai_texts)} done")
 
     translated_data = []
     for sample, h_ko, a_ko in zip(data, translated_human, translated_ai):
@@ -176,7 +140,6 @@ if os.path.exists(spa_path):
         content = sample["messages"][0]["content"]
         human_start = content.find("<image>") + len("<image>")
         ai_marker = "\n\nAI assistant:\n"
-        ai_start = content.find(ai_marker) + len(ai_marker)
         new_content = (
             content[:human_start] + " " + h_ko + "\n"
             + ai_marker + a_ko + "\n"
