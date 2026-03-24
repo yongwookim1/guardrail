@@ -49,7 +49,7 @@ args = parser.parse_args()
 
 print(f"Loading model: {args.model_path}")
 tokenizer = AutoTokenizer.from_pretrained(args.model_path)
-vllm_model = LLM(model=args.model_path, gpu_memory_utilization=0.70, max_num_seqs=256)
+vllm_model = LLM(model=args.model_path, gpu_memory_utilization=0.70, max_num_seqs=256, enforce_eager=True)
 sampling_params = SamplingParams(temperature=0., top_p=1.0, max_tokens=args.max_new_tokens)
 
 

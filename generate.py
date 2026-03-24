@@ -17,7 +17,7 @@ args = parser.parse_args()
 
 SAVE_PATH = f"./data/test/{args.model_path.split('/')[-1]}{args.suffix}"
 
-vllm_model = LLM(model=args.model_path, gpu_memory_utilization=0.70, max_num_seqs=256, limit_mm_per_prompt={"image": 10, "video": 10}, enforce_eager=True)
+vllm_model = LLM(model=args.model_path, gpu_memory_utilization=0.70, max_num_seqs=256, limit_mm_per_prompt={"image": 10, "video": 10}, enforce_eager=True, max_model_len=32768)
 sampling_params = SamplingParams(temperature=0., top_p=1.0, max_tokens=4096)
 processor = AutoProcessor.from_pretrained(args.model_path)
 
