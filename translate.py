@@ -2,7 +2,7 @@ import os
 import json
 import argparse
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 MODEL_PATH = "Qwen/Qwen3-8B"
 
@@ -55,16 +55,13 @@ args = parser.parse_args()
 
 datasets = ALL_DATASETS
 
-print(f"Loading model: {MODEL_PATH}")
-tokenizer = AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True, padding_side="left")
+print(f"Loading model: {args.model_path}")
+tokenizer = AutoTokenizer.from_pretrained(args.model_path, padding_side="left")
 model = AutoModelForCausalLM.from_pretrained(
     args.model_path,
-    torch_dtype=torch.bfloat16,
+    torch_dtype="auto",
     device_map="auto",
-    trust_remote_code=True,
 )
-generation_config = GenerationConfig.from_pretrained(args.model_path)
-generation_config.max_new_tokens = args.max_new_tokens
 model.eval()
 
 
@@ -78,7 +75,7 @@ def translate_batch(texts: list[str]) -> list[str]:
     ]
 
     prompts = [
-        tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, enable_thinking=False)
         for messages in messages_batch
     ]
 
@@ -86,20 +83,20 @@ def translate_batch(texts: list[str]) -> list[str]:
         prompts,
         return_tensors="pt",
         padding=True,
-        truncation=True,
-        max_length=1024,
+        truncation=False,
     ).to(model.device)
 
     inputs.pop("token_type_ids", None)
+    input_len = inputs["input_ids"].shape[1]
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
-            generation_config=generation_config,
+            max_new_tokens=args.max_new_tokens,
+            do_sample=False,
             pad_token_id=tokenizer.eos_token_id,
         )
 
     # Decode only the newly generated tokens
-    input_len = inputs["input_ids"].shape[1]
     results = []
     for output in outputs:
         generated = output[input_len:]
