@@ -86,6 +86,9 @@ def reverse(gt_example):
 def fmt(val):
     return f"{val:<20.2f}" if val is not None else f"{'N/A':<20}"
 
+def fmt_row(label, values):
+    return f"{label:<20}," + ",".join([fmt(v) for v in values])
+
 def get_ko_folder(folder):
     return folder.rstrip("/") + "_ko/"
 
@@ -121,7 +124,7 @@ for folder in folders:
     print("[EN] " + " ".join([fmt(v) for v in [toxic_chat_f1, harm_bench_prompt_f1, openai_moderation_f1, aegis_safety_test_f1, simple_safety_tests_f1, wild_guard_test_prompt_f1, weighted_f1_prompt_text, harm_image_test_f1, sap_vl_eval_f1_prompt, weighted_f1_prompt]]))
 
     with open("result.csv", "a+") as file:
-        print("[EN]," + ",".join([fmt(v).strip() for v in [toxic_chat_f1, harm_bench_prompt_f1, openai_moderation_f1, aegis_safety_test_f1, simple_safety_tests_f1, wild_guard_test_prompt_f1, weighted_f1_prompt_text, harm_image_test_f1, sap_vl_eval_f1_prompt, weighted_f1_prompt]]), file=file)
+        print(fmt_row("[EN]", [toxic_chat_f1, harm_bench_prompt_f1, openai_moderation_f1, aegis_safety_test_f1, simple_safety_tests_f1, wild_guard_test_prompt_f1, weighted_f1_prompt_text, harm_image_test_f1, sap_vl_eval_f1_prompt, weighted_f1_prompt]), file=file)
 
     if has_ko:
         toxic_chat_f1_ko = cal_f1(ko_folder, "ToxicChat")
@@ -136,7 +139,7 @@ for folder in folders:
         weighted_f1_prompt_ko = cal_weighted_f1(f1_list, clear=True)
         print("[KO] " + " ".join([fmt(v) for v in [toxic_chat_f1_ko, harm_bench_prompt_f1_ko, openai_moderation_f1_ko, aegis_safety_test_f1_ko, simple_safety_tests_f1_ko, wild_guard_test_prompt_f1_ko, weighted_f1_prompt_text_ko, harm_image_test_f1_ko, sap_vl_eval_f1_prompt_ko, weighted_f1_prompt_ko]]))
         with open("result.csv", "a+") as file:
-            print("[KO]," + ",".join([fmt(v).strip() for v in [toxic_chat_f1_ko, harm_bench_prompt_f1_ko, openai_moderation_f1_ko, aegis_safety_test_f1_ko, simple_safety_tests_f1_ko, wild_guard_test_prompt_f1_ko, weighted_f1_prompt_text_ko, harm_image_test_f1_ko, sap_vl_eval_f1_prompt_ko, weighted_f1_prompt_ko]]), file=file)
+            print(fmt_row("[KO]", [toxic_chat_f1_ko, harm_bench_prompt_f1_ko, openai_moderation_f1_ko, aegis_safety_test_f1_ko, simple_safety_tests_f1_ko, wild_guard_test_prompt_f1_ko, weighted_f1_prompt_text_ko, harm_image_test_f1_ko, sap_vl_eval_f1_prompt_ko, weighted_f1_prompt_ko]), file=file)
 
     print("-"*180, end='\n\n\n')
 
@@ -161,7 +164,7 @@ for folder in folders:
     print("[EN] " + " ".join([fmt(v) for v in [harm_bench_response_f1, safe_rlhf_response_f1, beaver_tails_response_f1, xstest_reponse_harmful_f1, wild_guard_test_reponse_f1, weighted_f1_response_text, sap_vl_eval_f1_response, weighted_f1_response]]))
 
     with open("result.csv", "a+") as file:
-        print("[EN]," + ",".join([fmt(v).strip() for v in [harm_bench_response_f1, safe_rlhf_response_f1, beaver_tails_response_f1, xstest_reponse_harmful_f1, wild_guard_test_reponse_f1, weighted_f1_response_text, sap_vl_eval_f1_response, weighted_f1_response]]), file=file)
+        print(fmt_row("[EN]", [harm_bench_response_f1, safe_rlhf_response_f1, beaver_tails_response_f1, xstest_reponse_harmful_f1, wild_guard_test_reponse_f1, weighted_f1_response_text, sap_vl_eval_f1_response, weighted_f1_response]), file=file)
 
     if has_ko:
         harm_bench_response_f1_ko = cal_f1(ko_folder, "HarmBenchResponse")
@@ -174,7 +177,7 @@ for folder in folders:
         weighted_f1_response_ko = cal_weighted_f1(f1_list, clear=True)
         print("[KO] " + " ".join([fmt(v) for v in [harm_bench_response_f1_ko, safe_rlhf_response_f1_ko, beaver_tails_response_f1_ko, xstest_reponse_harmful_f1_ko, wild_guard_test_reponse_f1_ko, weighted_f1_response_text_ko, sap_vl_eval_f1_response_ko, weighted_f1_response_ko]]))
         with open("result.csv", "a+") as file:
-            print("[KO]," + ",".join([fmt(v).strip() for v in [harm_bench_response_f1_ko, safe_rlhf_response_f1_ko, beaver_tails_response_f1_ko, xstest_reponse_harmful_f1_ko, wild_guard_test_reponse_f1_ko, weighted_f1_response_text_ko, sap_vl_eval_f1_response_ko, weighted_f1_response_ko]]), file=file)
+            print(fmt_row("[KO]", [harm_bench_response_f1_ko, safe_rlhf_response_f1_ko, beaver_tails_response_f1_ko, xstest_reponse_harmful_f1_ko, wild_guard_test_reponse_f1_ko, weighted_f1_response_text_ko, sap_vl_eval_f1_response_ko, weighted_f1_response_ko]), file=file)
             print(file=file)
 
     print("-"*130, end='\n\n\n')
