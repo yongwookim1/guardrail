@@ -9,8 +9,8 @@ export HF_HUB_OFFLINE=1
 find_model() { find /home /data /scratch 2>/dev/null -type d -name "$1" | head -1; }
 
 MODEL_PATH=${1:-$(find_model "GuardReasoner-VL*")}
-QWEN_PATH=${4:-$(find_model "Qwen3.5-9B")}
-QWEN_PATH=${QWEN_PATH:-"Qwen/Qwen3.5-9B"}
+QWEN_PATH=${4:-$(find_model "Qwen3-8B")}
+QWEN_PATH=${QWEN_PATH:-"Qwen/Qwen3-8B"}
 
 [ -z "$MODEL_PATH" ] && { echo "ERROR: Could not find GuardReasoner model."; exit 1; }
 
