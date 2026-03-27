@@ -24,3 +24,6 @@ CUDA_VISIBLE_DEVICES=$GPUS python generate.py \
     --model_path $MODEL_PATH \
     --benchmark_path $BENCHMARK_PATH \
     --suffix _ko
+
+# Step 3: Evaluate
+python evaluate.py
