@@ -7,9 +7,14 @@ LLAMA_FACTORY=$WORK_DIR/LLaMA-Factory
 EASYR1=$GUARDREASONER/train/EasyR1
 DATA_DIR=$GUARDREASONER/data/train/llamafactory_data
 
-echo "=== Step 1: PyTorch via pip (cu124 wheels — compatible with CUDA 12.x drivers) ==="
-pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
-    --index-url https://download.pytorch.org/whl/cu124
+echo "=== Step 1: Check PyTorch ==="
+if python -c "import torch" 2>/dev/null; then
+    python -c "import torch; print('PyTorch:', torch.__version__, '| CUDA available:', torch.cuda.is_available(), '| GPUs:', torch.cuda.device_count())"
+else
+    echo "PyTorch not found. Install it manually before running this script:"
+    echo "  conda install pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 pytorch-cuda=12.4 -c pytorch -c nvidia -y"
+    exit 1
+fi
 
 echo "=== Step 2: pip dependencies ==="
 pip install \
