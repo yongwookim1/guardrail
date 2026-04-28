@@ -51,18 +51,32 @@ pip install \
     scikit-learn \
     psutil
 
-echo "=== Install LLaMA-Factory v0.9.1 ==="
+echo "=== Install LLaMA-Factory (latest) ==="
 if [ ! -d "$LLAMA_FACTORY" ]; then
-    git clone --branch v0.9.1 --depth 1 https://github.com/hiyouga/LLaMA-Factory $LLAMA_FACTORY
+    git clone --depth 1 https://github.com/hiyouga/LLaMA-Factory $LLAMA_FACTORY
 fi
 cd $LLAMA_FACTORY
-pip install -e ".[torch,metrics]" --ignore-requires-python
-pip install "transformers>=4.56.0" "tokenizers>=0.21.1" --upgrade
+pip install -e ".[torch,metrics]"
 cd -
 
 echo "=== Wire data into LLaMA-Factory ==="
 rm -rf $LLAMA_FACTORY/data
 ln -s $DATA_DIR $LLAMA_FACTORY/data
+
+echo "=== Fix image paths ==="
+ln -sfn $DATA_DIR/image $GUARDREASONER/data/image
+ln -sfn $DATA_DIR/text_image $GUARDREASONER/data/text_image
+
+echo "=== Write dataset_info.json ==="
+python3 -c "
+import json
+d = {
+  'GuardReasoner_VLTrainImage': {'file_name': 'GuardReasoner-VLTrainImage.json', 'formatting': 'sharegpt', 'columns': {'messages': 'messages', 'images': 'images'}, 'tags': {'role_tag': 'role', 'content_tag': 'content', 'user_tag': 'user', 'assistant_tag': 'assistant', 'system_tag': 'system'}},
+  'GuardReasoner_VLTrainText': {'file_name': 'GuardReasoner-VLTrainText.json', 'formatting': 'sharegpt', 'columns': {'messages': 'messages'}, 'tags': {'role_tag': 'role', 'content_tag': 'content', 'user_tag': 'user', 'assistant_tag': 'assistant', 'system_tag': 'system'}},
+  'GuardReasoner_VLTrainTextImage': {'file_name': 'GuardReasoner-VLTrainTextImage.json', 'formatting': 'sharegpt', 'columns': {'messages': 'messages', 'images': 'images'}, 'tags': {'role_tag': 'role', 'content_tag': 'content', 'user_tag': 'user', 'assistant_tag': 'assistant', 'system_tag': 'system'}}
+}
+json.dump(d, open('$DATA_DIR/dataset_info.json', 'w'), indent=2)
+"
 
 echo "=== Create DeepSpeed ZeRO-3 config ==="
 mkdir -p $GUARDREASONER/train/cache
