@@ -7,21 +7,14 @@ LLAMA_FACTORY=$WORK_DIR/LLaMA-Factory
 EASYR1=$GUARDREASONER/train/EasyR1
 DATA_DIR=$GUARDREASONER/data/train/llamafactory_data
 
-echo "=== Remove and recreate gr-train from guardrail-eval ==="
-conda deactivate 2>/dev/null || true
-conda remove -n gr-train --all -y 2>/dev/null || true
-conda create -n gr-train --clone guardrail-eval -y
-
-echo "=== Activate gr-train ==="
-source $(conda info --base)/etc/profile.d/conda.sh
-conda activate gr-train
-
 echo "=== Verify PyTorch ==="
-python -c "import torch; print('PyTorch:', torch.__version__, '| CUDA:', torch.version.cuda, '| Available:', torch.cuda.is_available(), '| GPUs:', torch.cuda.device_count())"
+python -c "import torch; print('PyTorch:', torch.__version__, '| CUDA:', torch.version.cuda, '| GPUs:', torch.cuda.device_count())"
 
 echo "=== Install pip dependencies ==="
 pip install \
     "transformers>=4.56.0" \
+    "tokenizers>=0.21.1" \
+    "numpy>=2" \
     accelerate \
     datasets \
     peft \
@@ -54,16 +47,12 @@ pip install \
     packaging \
     protobuf \
     pyyaml \
-    "numpy>=2" \
     pandas \
     scikit-learn \
-    psutil \
-    "tokenizers>=0.21.1"
+    psutil
 
-echo "=== Clone and install LLaMA-Factory v0.9.1 ==="
-if [ -d "$LLAMA_FACTORY" ]; then
-    echo "LLaMA-Factory already exists — skipping clone"
-else
+echo "=== Install LLaMA-Factory v0.9.1 ==="
+if [ ! -d "$LLAMA_FACTORY" ]; then
     git clone --branch v0.9.1 --depth 1 https://github.com/hiyouga/LLaMA-Factory $LLAMA_FACTORY
 fi
 cd $LLAMA_FACTORY
@@ -101,16 +90,16 @@ cat > $GUARDREASONER/train/cache/ds_z3_config.json << 'EOF'
 }
 EOF
 
-echo "=== Set PYTHONPATH for EasyR1 ==="
+echo "=== Set PYTHONPATH ==="
 grep -qF "EasyR1" ~/.bashrc || \
     echo "export PYTHONPATH=$EASYR1:\$PYTHONPATH" >> ~/.bashrc
+source ~/.bashrc
 
-echo "=== Install flash-attn (source build with gcc-12, CUDA 12.8 matched) ==="
+echo "=== Install flash-attn ==="
 sudo apt-get install -y gcc-12 g++-12
 CC=gcc-12 CXX=g++-12 pip install flash-attn --no-build-isolation || \
-    echo "WARNING: flash-attn failed — training will use standard attention (slower but works)"
+    echo "WARNING: flash-attn failed — training still works, just slower"
 
 echo ""
-echo "=== Done ==="
-source ~/.bashrc
+echo "=== Setup complete ==="
 python -c "import torch; print('PyTorch:', torch.__version__, '| CUDA:', torch.version.cuda, '| GPUs:', torch.cuda.device_count())"
