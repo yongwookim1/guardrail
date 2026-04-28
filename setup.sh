@@ -1,15 +1,15 @@
 #!/bin/bash
 set -e
 
-WORK_DIR=/home/work/MLLM_Safety
+WORK_DIR=${WORK_DIR:-$HOME/MLLM_Safety}
 GUARDREASONER=$WORK_DIR/guardreasoner
 LLAMA_FACTORY=$WORK_DIR/LLaMA-Factory
 EASYR1=$GUARDREASONER/train/EasyR1
 DATA_DIR=$GUARDREASONER/data/train/llamafactory_data
 
-echo "=== Step 1: PyTorch via conda (cu124) ==="
-conda install pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
-    pytorch-cuda=12.4 -c pytorch -c nvidia -y
+echo "=== Step 1: PyTorch via pip (cu124 wheels — compatible with CUDA 12.x drivers) ==="
+pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
+    --index-url https://download.pytorch.org/whl/cu124
 
 echo "=== Step 2: pip dependencies ==="
 pip install \
@@ -91,8 +91,17 @@ echo "=== Step 6: PYTHONPATH for EasyR1/verl ==="
 grep -qxF "export PYTHONPATH=$EASYR1:\$PYTHONPATH" ~/.bashrc || \
     echo "export PYTHONPATH=$EASYR1:\$PYTHONPATH" >> ~/.bashrc
 
-echo "=== Step 7: Build flash-attn (~10-15 min) ==="
-pip install flash-attn --no-build-isolation
+echo "=== Step 7: Install flash-attn via pre-built wheel (bypasses GCC 13 compile issue) ==="
+PY_VER=$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
+FLASH_WHEEL="flash_attn-2.7.4+cu124torch2.5cxx11abiFALSE-${PY_VER}-${PY_VER}-linux_x86_64.whl"
+FLASH_URL="https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4/${FLASH_WHEEL}"
+
+echo "Detected Python tag: $PY_VER — downloading $FLASH_WHEEL"
+pip install "$FLASH_URL" || {
+    echo "Pre-built wheel not found for $PY_VER. Falling back to source build with gcc-12..."
+    sudo apt-get install -y gcc-12 g++-12
+    CC=gcc-12 CXX=g++-12 pip install flash-attn --no-build-isolation
+}
 
 echo ""
 echo "Done. Run: source ~/.bashrc"
