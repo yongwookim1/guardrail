@@ -12,13 +12,14 @@ parser.add_argument('--model_path', type=str, required=True, help='model path')
 parser.add_argument('--data_path', type=str, required=True, help='data path')
 parser.add_argument('--temp', type=float, default=1.0, help='temperature')
 parser.add_argument('--top_p', type=float, default=0.95, help='top p')
-parser.add_argument('--repeat_n', type=float, default=4, help='repeat n')
+parser.add_argument('--repeat_n', type=int, default=4, help='repeat n')
+parser.add_argument('--tensor_parallel_size', type=int, default=1, help='tensor parallel size for vllm')
 args = parser.parse_args()
 
-vllm_model = LLM(model=args.model_path, gpu_memory_utilization=0.80, max_num_seqs=256, limit_mm_per_prompt={"image": 10, "video": 10})
-sampling_params = SamplingParams(temperature=args.temp, top_p=args.temp.top_p, max_tokens=4096)
+vllm_model = LLM(model=args.model_path, gpu_memory_utilization=0.80, max_num_seqs=256, limit_mm_per_prompt={"image": 10, "video": 10}, tensor_parallel_size=args.tensor_parallel_size)
+sampling_params = SamplingParams(temperature=args.temp, top_p=args.top_p, max_tokens=4096)
 
-processor = AutoProcessor.from_pretrained(=args.model_path)
+processor = AutoProcessor.from_pretrained(args.model_path)
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # for text 

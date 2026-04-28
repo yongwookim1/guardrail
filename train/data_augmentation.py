@@ -178,7 +178,7 @@ for id, item in enumerate(sampled_data):
         image_list.append([Image.new("RGB", (1, 1), "white")])
     else:
 
-        image_path = args.data_path+sample['images'][0][2:]
+        image_path = args.data_path+item['images'][0][2:]
         with open(image_path, "rb") as img_file:
             image_bytes = img_file.read()
 

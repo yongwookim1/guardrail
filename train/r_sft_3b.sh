@@ -1,10 +1,14 @@
-device="0,1,2,3"
-save_path="saves/Custom/full/Qwen2.5-VL-3B/R-SFT-3B"
+WORK_DIR=/home/work/MLLM_Safety
+LLAMA_FACTORY=$WORK_DIR/LLaMA-Factory
+GUARDREASONER=$WORK_DIR/guardreasoner
 
+device="0,1,2,3,4,5,6,7"
+save_path=$LLAMA_FACTORY/saves/Custom/full/Qwen2.5-VL-3B/R-SFT-3B
 model="Qwen/Qwen2.5-VL-3B-Instruct"
 batch_size=6
 cutoff_len=2048
 
+cd $LLAMA_FACTORY
 
 CUDA_VISIBLE_DEVICES=$device llamafactory-cli train \
     --stage sft \
@@ -14,14 +18,14 @@ CUDA_VISIBLE_DEVICES=$device llamafactory-cli train \
     --finetuning_type full \
     --template qwen2_vl \
     --flash_attn auto \
-    --dataset_dir data \
+    --dataset_dir $LLAMA_FACTORY/data \
     --dataset GuardReasoner_VLTrainImage,GuardReasoner_VLTrainText,GuardReasoner_VLTrainTextImage \
     --cutoff_len $cutoff_len \
     --learning_rate 5e-05 \
     --num_train_epochs 3.0 \
     --max_samples 100000 \
     --per_device_train_batch_size $batch_size \
-    --gradient_accumulation_steps 8 \
+    --gradient_accumulation_steps 4 \
     --lr_scheduler_type cosine \
     --max_grad_norm 1.0 \
     --logging_steps 5 \
@@ -34,4 +38,4 @@ CUDA_VISIBLE_DEVICES=$device llamafactory-cli train \
     --plot_loss True \
     --ddp_timeout 180000000 \
     --optim adamw_torch \
-    --deepspeed cache/ds_z3_config.json
+    --deepspeed $GUARDREASONER/train/cache/ds_z3_config.json
