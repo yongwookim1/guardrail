@@ -61,43 +61,7 @@ cd $LLAMA_FACTORY
 pip install -e ".[torch,metrics]"
 cd -
 
-echo "=== Step 4: Prepare data directory and download SFT datasets ==="
-mkdir -p $DATA_DIR
-cd $DATA_DIR
-python $GUARDREASONER/train/prepare_data_rsft.py
-
-# Register datasets in LLaMA-Factory's dataset_info.json
-cat > $DATA_DIR/dataset_info.json << 'EOF'
-{
-  "GuardReasoner_VLTrainImage": {
-    "file_name": "GuardReasoner-VLTrainImage.json",
-    "formatting": "sharegpt",
-    "columns": {
-      "messages": "conversations",
-      "images": "images"
-    }
-  },
-  "GuardReasoner_VLTrainText": {
-    "file_name": "GuardReasoner-VLTrainText.json",
-    "formatting": "sharegpt",
-    "columns": {
-      "messages": "conversations"
-    }
-  },
-  "GuardReasoner_VLTrainTextImage": {
-    "file_name": "GuardReasoner-VLTrainTextImage.json",
-    "formatting": "sharegpt",
-    "columns": {
-      "messages": "conversations",
-      "images": "images"
-    }
-  }
-}
-EOF
-
-cd -
-
-echo "=== Step 4b: Wire data into LLaMA-Factory ==="
+echo "=== Step 4: Wire existing data into LLaMA-Factory ==="
 rm -rf $LLAMA_FACTORY/data
 ln -s $DATA_DIR $LLAMA_FACTORY/data
 
