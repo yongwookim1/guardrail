@@ -60,7 +60,7 @@ echo "=== Step 3: Clone and install LLaMA-Factory ==="
 if [ -d "$LLAMA_FACTORY" ]; then
     echo "LLaMA-Factory already exists at $LLAMA_FACTORY — skipping clone"
 else
-    git clone https://github.com/hiyouga/LLaMA-Factory $LLAMA_FACTORY
+    git clone --branch v0.9.1 --depth 1 https://github.com/hiyouga/LLaMA-Factory $LLAMA_FACTORY
 fi
 cd $LLAMA_FACTORY
 pip install -e ".[torch,metrics]"
