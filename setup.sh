@@ -12,7 +12,7 @@ if python -c "import torch" 2>/dev/null; then
     python -c "import torch; print('PyTorch:', torch.__version__, '| CUDA available:', torch.cuda.is_available(), '| GPUs:', torch.cuda.device_count())"
 else
     echo "PyTorch not found. Install it manually before running this script:"
-    echo "  conda install pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 pytorch-cuda=12.4 -c pytorch -c nvidia -y"
+    echo "  conda install pytorch torchvision torchaudio pytorch-cuda=12.8 -c pytorch -c nvidia -y"
     exit 1
 fi
 
@@ -96,6 +96,9 @@ cat > $GUARDREASONER/train/cache/ds_z3_config.json << 'EOF'
 }
 EOF
 
+echo "=== Step 5b: Fix version conflicts caused by LLaMA-Factory ==="
+pip install "transformers>=4.56.0" "tokenizers>=0.21.1" "numpy>=2" --upgrade
+
 echo "=== Step 6: PYTHONPATH for EasyR1/verl ==="
 grep -qF "EasyR1" ~/.bashrc || \
     echo "export PYTHONPATH=$EASYR1:\$PYTHONPATH" >> ~/.bashrc
@@ -109,7 +112,8 @@ echo "Detected Python tag: $PY_VER — downloading $FLASH_WHEEL"
 pip install "$FLASH_URL" || {
     echo "Pre-built wheel not found for $PY_VER. Falling back to source build with gcc-12..."
     sudo apt-get install -y gcc-12 g++-12
-    CC=gcc-12 CXX=g++-12 pip install flash-attn --no-build-isolation
+    CC=gcc-12 CXX=g++-12 pip install flash-attn --no-build-isolation || \
+        echo "WARNING: flash-attn install failed. Training will use standard attention (slower but functional). Fix manually later."
 }
 
 echo ""
