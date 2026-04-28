@@ -1,24 +1,27 @@
 #!/bin/bash
 set -e
 
-WORK_DIR=${WORK_DIR:-$HOME/MLLM_Safety}
+WORK_DIR=$HOME/MLLM_Safety
 GUARDREASONER=$WORK_DIR/guardreasoner
 LLAMA_FACTORY=$WORK_DIR/LLaMA-Factory
 EASYR1=$GUARDREASONER/train/EasyR1
 DATA_DIR=$GUARDREASONER/data/train/llamafactory_data
 
-echo "=== Step 1: Check PyTorch ==="
-if python -c "import torch" 2>/dev/null; then
-    python -c "import torch; print('PyTorch:', torch.__version__, '| CUDA available:', torch.cuda.is_available(), '| GPUs:', torch.cuda.device_count())"
-else
-    echo "PyTorch not found. Install it manually before running this script:"
-    echo "  conda install pytorch torchvision torchaudio pytorch-cuda=12.8 -c pytorch -c nvidia -y"
-    exit 1
-fi
+echo "=== Remove and recreate gr-train from guardrail-eval ==="
+conda deactivate 2>/dev/null || true
+conda remove -n gr-train --all -y 2>/dev/null || true
+conda create -n gr-train --clone guardrail-eval -y
 
-echo "=== Step 2: pip dependencies ==="
+echo "=== Activate gr-train ==="
+source $(conda info --base)/etc/profile.d/conda.sh
+conda activate gr-train
+
+echo "=== Verify PyTorch ==="
+python -c "import torch; print('PyTorch:', torch.__version__, '| CUDA:', torch.version.cuda, '| Available:', torch.cuda.is_available(), '| GPUs:', torch.cuda.device_count())"
+
+echo "=== Install pip dependencies ==="
 pip install \
-    "transformers>=4.54.0,<5.0.0" \
+    "transformers>=4.56.0" \
     accelerate \
     datasets \
     peft \
@@ -51,26 +54,28 @@ pip install \
     packaging \
     protobuf \
     pyyaml \
-    numpy \
+    "numpy>=2" \
     pandas \
     scikit-learn \
-    psutil
+    psutil \
+    "tokenizers>=0.21.1"
 
-echo "=== Step 3: Clone and install LLaMA-Factory ==="
+echo "=== Clone and install LLaMA-Factory v0.9.1 ==="
 if [ -d "$LLAMA_FACTORY" ]; then
-    echo "LLaMA-Factory already exists at $LLAMA_FACTORY — skipping clone"
+    echo "LLaMA-Factory already exists — skipping clone"
 else
     git clone --branch v0.9.1 --depth 1 https://github.com/hiyouga/LLaMA-Factory $LLAMA_FACTORY
 fi
 cd $LLAMA_FACTORY
-pip install -e ".[torch,metrics]"
+pip install -e ".[torch,metrics]" --ignore-requires-python
+pip install "transformers>=4.56.0" "tokenizers>=0.21.1" --upgrade
 cd -
 
-echo "=== Step 4: Wire existing data into LLaMA-Factory ==="
+echo "=== Wire data into LLaMA-Factory ==="
 rm -rf $LLAMA_FACTORY/data
 ln -s $DATA_DIR $LLAMA_FACTORY/data
 
-echo "=== Step 5: Create DeepSpeed ZeRO-3 config ==="
+echo "=== Create DeepSpeed ZeRO-3 config ==="
 mkdir -p $GUARDREASONER/train/cache
 cat > $GUARDREASONER/train/cache/ds_z3_config.json << 'EOF'
 {
@@ -96,26 +101,16 @@ cat > $GUARDREASONER/train/cache/ds_z3_config.json << 'EOF'
 }
 EOF
 
-echo "=== Step 5b: Fix version conflicts caused by LLaMA-Factory ==="
-pip install "transformers>=4.56.0" "tokenizers>=0.21.1" "numpy>=2" --upgrade
-
-echo "=== Step 6: PYTHONPATH for EasyR1/verl ==="
+echo "=== Set PYTHONPATH for EasyR1 ==="
 grep -qF "EasyR1" ~/.bashrc || \
     echo "export PYTHONPATH=$EASYR1:\$PYTHONPATH" >> ~/.bashrc
 
-echo "=== Step 7: Install flash-attn via pre-built wheel (bypasses GCC 13 compile issue) ==="
-PY_VER=$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
-FLASH_WHEEL="flash_attn-2.7.4+cu124torch2.5cxx11abiFALSE-${PY_VER}-${PY_VER}-linux_x86_64.whl"
-FLASH_URL="https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4/${FLASH_WHEEL}"
-
-echo "Detected Python tag: $PY_VER — downloading $FLASH_WHEEL"
-pip install "$FLASH_URL" || {
-    echo "Pre-built wheel not found for $PY_VER. Falling back to source build with gcc-12..."
-    sudo apt-get install -y gcc-12 g++-12
-    CC=gcc-12 CXX=g++-12 pip install flash-attn --no-build-isolation || \
-        echo "WARNING: flash-attn install failed. Training will use standard attention (slower but functional). Fix manually later."
-}
+echo "=== Install flash-attn (source build with gcc-12, CUDA 12.8 matched) ==="
+sudo apt-get install -y gcc-12 g++-12
+CC=gcc-12 CXX=g++-12 pip install flash-attn --no-build-isolation || \
+    echo "WARNING: flash-attn failed — training will use standard attention (slower but works)"
 
 echo ""
-echo "Done. Run: source ~/.bashrc"
-echo "Verify: python -c 'import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.device_count())'"
+echo "=== Done ==="
+source ~/.bashrc
+python -c "import torch; print('PyTorch:', torch.__version__, '| CUDA:', torch.version.cuda, '| GPUs:', torch.cuda.device_count())"
