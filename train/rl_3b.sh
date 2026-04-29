@@ -1,3 +1,6 @@
+export TRANSFORMERS_OFFLINE=1
+export HF_DATASETS_OFFLINE=1
+
 WORK_DIR=/home/work/MLLM_Safety
 LLAMA_FACTORY=$WORK_DIR/LLaMA-Factory
 EASYR1=$WORK_DIR/guardreasoner/train/EasyR1
