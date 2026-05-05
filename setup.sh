@@ -1,9 +1,8 @@
 #!/bin/bash
 set -e
 
-WORK_DIR=$HOME/MLLM_Safety
-GUARDREASONER=$WORK_DIR/guardreasoner
-LLAMA_FACTORY=$WORK_DIR/LLaMA-Factory
+GUARDREASONER=$(cd "$(dirname "$0")" && pwd)
+LLAMA_FACTORY=${LLAMA_FACTORY:-$(cd "$GUARDREASONER/.." && pwd)/LLaMA-Factory}
 EASYR1=$GUARDREASONER/train/EasyR1
 DATA_DIR=$GUARDREASONER/data/train/llamafactory_data
 

@@ -1,13 +1,12 @@
 export TRANSFORMERS_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
 
-WORK_DIR=/home/work/MLLM_Safety
-LLAMA_FACTORY=$WORK_DIR/LLaMA-Factory
-GUARDREASONER=$WORK_DIR/guardreasoner
+GUARDREASONER=$(cd "$(dirname "$0")/.." && pwd)
+LLAMA_FACTORY=${LLAMA_FACTORY:-$(cd "$GUARDREASONER/.." && pwd)/LLaMA-Factory}
 
 device="0,1,2,3,4,5,6,7"
 save_path=$LLAMA_FACTORY/saves/Custom/full/Qwen2.5-VL-7B/R-SFT-7B
-model=$(cd "$(dirname "$0")/.." && pwd)/models/Qwen2.5-VL-7B-Instruct
+model=$GUARDREASONER/models/Qwen2.5-VL-7B-Instruct
 batch_size=6
 cutoff_len=2048
 
