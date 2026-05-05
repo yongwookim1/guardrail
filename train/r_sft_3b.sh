@@ -21,6 +21,7 @@ CUDA_VISIBLE_DEVICES=$device llamafactory-cli train \
     --template qwen2_vl \
     --flash_attn auto \
     --dataset_dir $LLAMA_FACTORY/data \
+    --media_dir $LLAMA_FACTORY \
     --dataset GuardReasoner_VLTrainImage,GuardReasoner_VLTrainText,GuardReasoner_VLTrainTextImage \
     --cutoff_len $cutoff_len \
     --learning_rate 5e-05 \
