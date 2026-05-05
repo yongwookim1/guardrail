@@ -2,6 +2,7 @@ export TRANSFORMERS_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
 export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
+
 GUARDREASONER=$(cd "$(dirname "$0")/.." && pwd)
 LLAMA_FACTORY=${LLAMA_FACTORY:-$(cd "$GUARDREASONER/.." && pwd)/LLaMA-Factory}
 
@@ -35,11 +36,11 @@ CUDA_VISIBLE_DEVICES=$device llamafactory-cli train \
     --logging_steps 5 \
     --save_steps 1000000 \
     --warmup_steps 0 \
-    --packing False \
+    --packing True \
     --report_to none \
     --output_dir $save_path \
     --bf16 True \
     --plot_loss True \
     --ddp_timeout 180000000 \
-    --optim adamw_torch \
+    --optim adamw_torch_fused \
     --deepspeed $GUARDREASONER/train/cache/ds_z3_config.json
