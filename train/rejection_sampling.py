@@ -37,7 +37,8 @@ def load_data(data_name):
 
 def resolve_data_image(image_ref):
     image_ref = image_ref[2:] if image_ref.startswith("./") else image_ref
-    return os.path.join(args.data_path, image_ref)
+    llama_root = os.path.dirname(args.data_path.rstrip('/'))
+    return os.path.join(llama_root, image_ref)
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # for text 

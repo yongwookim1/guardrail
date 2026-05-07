@@ -187,7 +187,9 @@ for id, item in enumerate(sampled_data):
         image_ref = item.get("image_path")
         if image_ref is None and item.get("images"):
             image_ref = item["images"][0]
-        image_path = os.path.join(args.data_path, image_ref[2:] if image_ref.startswith("./") else image_ref)
+        image_ref = image_ref[2:] if image_ref.startswith("./") else image_ref
+        llama_root = os.path.dirname(args.data_path.rstrip('/'))
+        image_path = os.path.join(llama_root, image_ref)
         with open(image_path, "rb") as img_file:
             image_bytes = img_file.read()
 
