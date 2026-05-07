@@ -43,6 +43,9 @@ def resolve_data_image(image_ref):
 # for text 
 for gen_time in range(args.repeat_n):
     for idx, data_name in enumerate([ "GuardReasoner-VLTrainText"]):
+        file_path = f"{args.model_path}/{data_name}/generated_predictions_{gen_time}.jsonl"
+        if os.path.exists(file_path):
+            continue
         data = load_data(data_name)
 
         input_list = []
@@ -179,6 +182,9 @@ for gen_time in range(args.repeat_n):
 # for image
 for gen_time in range(args.repeat_n):
     for idx, data_name in enumerate(["GuardReasoner_VLTrainImage"]):
+        file_path = f"{args.model_path}/{data_name}/generated_predictions_{gen_time}.jsonl"
+        if os.path.exists(file_path):
+            continue
         data = load_data(data_name)
 
 
@@ -331,6 +337,9 @@ if args.include_vlsu:
 
 for gen_time in range(args.repeat_n):
     for idx, data_name in enumerate(text_image_data_names):
+        file_path = f"{args.model_path}/{data_name}/generated_predictions_{gen_time}.jsonl"
+        if os.path.exists(file_path):
+            continue
         data = load_data(data_name)
 
 
