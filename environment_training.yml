@@ -5,7 +5,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.10
+  - python=3.11
   - pip
   - pip:
     # PyTorch (install manually with CUDA version matching your system)
@@ -32,7 +32,8 @@ dependencies:
     - tensordict
     - torchdata
     - transformers>=4.54.0,<5.0.0
-    - vllm>=0.8.0
+    - vllm==0.19.1
+    - triton>=3.6.0
     - wandb
     # flash-attn>=2.4.3 requires compilation:
     # pip install flash-attn>=2.4.3 --no-build-isolation
@@ -55,3 +56,10 @@ dependencies:
     - anthropic        # llm.py uses Anthropic API
     - openai           # llm.py uses OpenAI API
     - tqdm
+variables:
+  VLLM_USE_V1: "0"
+  VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS: "1"
+  NCCL_P2P_DISABLE: "1"
+  NCCL_IB_DISABLE: "1"
+  NCCL_SHM_DISABLE: "1"
+  NCCL_DEBUG: INFO
