@@ -121,18 +121,24 @@ def generate_mixup_dataset(dataset, n_samples=1000):
 parser = argparse.ArgumentParser(description="rejection sampling")
 parser.add_argument('--model_path', type=str, required=True, help='model path')
 parser.add_argument('--data_path', type=str, required=True, help='data path')
-parser.add_argument('--repeat_n', type=float, default=4, help='repeat n')
+parser.add_argument('--repeat_n', type=int, default=4, help='repeat n')
 parser.add_argument('--sample_num', type=int, default=12000, help='number of sampling')
+parser.add_argument('--include_vlsu', action='store_true', help='include GuardReasoner-VLTrainVLSU predictions')
+parser.add_argument('--output_prefix', type=str, default=None, help='prefix for output parquet files')
 args = parser.parse_args()
 
 save_dict_list = []
 
-for data_name in ["GuardReasoner-VLTrainText", "GuardReasoner_VLTrainImage", "GuardReasoner_VLTrainTextImage"]:
-    folder = args.model_path + data_name
+data_names = ["GuardReasoner-VLTrainText", "GuardReasoner_VLTrainImage", "GuardReasoner_VLTrainTextImage"]
+if args.include_vlsu:
+    data_names.append("GuardReasoner-VLTrainVLSU")
+
+for data_name in data_names:
+    folder = os.path.join(args.model_path, data_name)
     data_list = []
     
     for i in range(args.repeat_n):
-        file = folder+f"/generated_predictions_{i}.jsonl"
+        file = os.path.join(folder, f"generated_predictions_{i}.jsonl")
 
         with open(file, "r") as f:
             data = [json.loads(line) for line in f]
@@ -178,7 +184,10 @@ for id, item in enumerate(sampled_data):
         image_list.append([Image.new("RGB", (1, 1), "white")])
     else:
 
-        image_path = args.data_path+item['images'][0][2:]
+        image_ref = item.get("image_path")
+        if image_ref is None and item.get("images"):
+            image_ref = item["images"][0]
+        image_path = os.path.join(args.data_path, image_ref[2:] if image_ref.startswith("./") else image_ref)
         with open(image_path, "rb") as img_file:
             image_bytes = img_file.read()
 
@@ -224,7 +233,7 @@ mix_data = generate_mixup_dataset(dataset["train"], n_samples=len(dataset["test"
 
 dataset["train"] = concatenate_datasets([mix_data, dataset["train"]])
 
-model_size = args.model_path.split("-")[-1].lower()
+model_size = args.output_prefix or args.model_path.split("-")[-1].lower()
 
 dataset["train"].to_parquet(f"{model_size}_aug_train.parquet")
 dataset["test"].to_parquet(f"{model_size}_aug_val.parquet")

@@ -14,6 +14,7 @@ parser.add_argument('--temp', type=float, default=1.0, help='temperature')
 parser.add_argument('--top_p', type=float, default=0.95, help='top p')
 parser.add_argument('--repeat_n', type=int, default=4, help='repeat n')
 parser.add_argument('--tensor_parallel_size', type=int, default=1, help='tensor parallel size for vllm')
+parser.add_argument('--include_vlsu', action='store_true', help='include GuardReasoner-VLTrainVLSU in text-image rejection sampling')
 args = parser.parse_args()
 
 vllm_model = LLM(model=args.model_path, gpu_memory_utilization=0.80, max_num_seqs=256, limit_mm_per_prompt={"image": 10, "video": 10}, tensor_parallel_size=args.tensor_parallel_size)
@@ -21,12 +22,28 @@ sampling_params = SamplingParams(temperature=args.temp, top_p=args.top_p, max_to
 
 processor = AutoProcessor.from_pretrained(args.model_path)
 
+
+def load_data(data_name):
+    candidates = [
+        os.path.join(args.data_path, f"{data_name}.json"),
+        os.path.join(args.data_path, f"{data_name.replace('_', '-')}.json"),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            with open(path) as file:
+                return json.load(file)
+    raise FileNotFoundError(f"Cannot find dataset file for {data_name}: {candidates}")
+
+
+def resolve_data_image(image_ref):
+    image_ref = image_ref[2:] if image_ref.startswith("./") else image_ref
+    return os.path.join(args.data_path, image_ref)
+
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # for text 
 for gen_time in range(args.repeat_n):
     for idx, data_name in enumerate([ "GuardReasoner-VLTrainText"]):
-        with open(f"{args.data_path}{data_name}.json") as file:
-            data = json.load(file)
+        data = load_data(data_name)
 
         input_list = []
         output_list = []
@@ -132,8 +149,8 @@ for gen_time in range(args.repeat_n):
                 predict = re.search(r'Response:\s*(harmful|unharmful|none)', i.outputs[0].text, re.IGNORECASE).groups()[0]
             except:
                 save_dict_list[id]["output"] = i.outputs[0].text
-                save_dict_list[id]["res_label"] = label_list[id]
-                if label_list[id]=="unharmful":
+                save_dict_list[id]["res_label"] = label_list_res[id]
+                if label_list_res[id]=="unharmful":
                     predict = "harmful"
                 else:
                     predict = "unharmful"
@@ -141,7 +158,7 @@ for gen_time in range(args.repeat_n):
                 
                 continue
             save_dict_list[id]["output"] = i.outputs[0].text
-            save_dict_list[id]["res_label"] = label_list[id]
+            save_dict_list[id]["res_label"] = label_list_res[id]
             save_dict_list[id]["res_predict"] = predict
         
 
@@ -162,8 +179,7 @@ for gen_time in range(args.repeat_n):
 # for image
 for gen_time in range(args.repeat_n):
     for idx, data_name in enumerate(["GuardReasoner_VLTrainImage"]):
-        with open(f"{args.data_path}{data_name}.json") as file:
-            data = json.load(file)
+        data = load_data(data_name)
 
 
         input_list = []
@@ -190,7 +206,7 @@ for gen_time in range(args.repeat_n):
             query = sample["messages"][1]['content']
             output = sample["messages"][2]['content']
             
-            image_path = args.data_path+sample['images'][0][2:]
+            image_path = resolve_data_image(sample['images'][0])
             
             image_messages = [
                 {
@@ -281,8 +297,8 @@ for gen_time in range(args.repeat_n):
                 predict = re.search(r'Response:\s*(harmful|unharmful|none)', i.outputs[0].text, re.IGNORECASE).groups()[0]
             except:
                 save_dict_list[id]["output"] = i.outputs[0].text
-                save_dict_list[id]["res_label"] = label_list[id]
-                if label_list[id]=="unharmful":
+                save_dict_list[id]["res_label"] = label_list_res[id]
+                if label_list_res[id]=="unharmful":
                     predict = "harmful"
                 else:
                     predict = "unharmful"
@@ -290,7 +306,7 @@ for gen_time in range(args.repeat_n):
                 
                 continue
             save_dict_list[id]["output"] = i.outputs[0].text
-            save_dict_list[id]["res_label"] = label_list[id]
+            save_dict_list[id]["res_label"] = label_list_res[id]
             save_dict_list[id]["res_predict"] = predict
             
 
@@ -309,10 +325,13 @@ for gen_time in range(args.repeat_n):
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # for image-text
+text_image_data_names = ["GuardReasoner_VLTrainTextImage"]
+if args.include_vlsu:
+    text_image_data_names.append("GuardReasoner-VLTrainVLSU")
+
 for gen_time in range(args.repeat_n):
-    for idx, data_name in enumerate(["GuardReasoner_VLTrainTextImage"]):
-        with open(f"{args.data_path}{data_name}.json") as file:
-            data = json.load(file)
+    for idx, data_name in enumerate(text_image_data_names):
+        data = load_data(data_name)
 
 
         input_list = []
@@ -339,7 +358,7 @@ for gen_time in range(args.repeat_n):
             query = sample["messages"][1]['content']
             output = sample["messages"][2]['content']
             
-            image_path = args.data_path+sample['images'][0][2:]
+            image_path = resolve_data_image(sample['images'][0])
             
             image_messages = [
                 {
@@ -428,8 +447,8 @@ for gen_time in range(args.repeat_n):
                 predict = re.search(r'Response:\s*(harmful|unharmful|none)', i.outputs[0].text, re.IGNORECASE).groups()[0]
             except:
                 save_dict_list[id]["output"] = i.outputs[0].text
-                save_dict_list[id]["res_label"] = label_list[id]
-                if label_list[id]=="unharmful":
+                save_dict_list[id]["res_label"] = label_list_res[id]
+                if label_list_res[id]=="unharmful":
                     predict = "harmful"
                 else:
                     predict = "unharmful"
@@ -437,7 +456,7 @@ for gen_time in range(args.repeat_n):
                 
                 continue
             save_dict_list[id]["output"] = i.outputs[0].text
-            save_dict_list[id]["res_label"] = label_list[id]
+            save_dict_list[id]["res_label"] = label_list_res[id]
             save_dict_list[id]["res_predict"] = predict
             
 
