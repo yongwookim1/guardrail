@@ -1,4 +1,8 @@
 #!/bin/bash
+set -e
+
+GUARDREASONER=$(cd "$(dirname "$0")/.." && pwd)
+cd "$GUARDREASONER"
 
 MODEL_PATH=${1:-"yueliu1999/GuardReasoner-VL-3B"}
 BENCHMARK_PATH=${2:-"./data/benchmark/"}
@@ -16,13 +20,13 @@ MIDM_PATH=${MIDM_PATH:-"K-intelligence/Midm-2.0-Base-Instruct"}
 
 # Step 1: Translate to Korean
 CUDA_VISIBLE_DEVICES=$GPUS python translate.py \
-    --model_path $MIDM_PATH \
-    --benchmark_path $BENCHMARK_PATH
+    --model_path "$MIDM_PATH" \
+    --benchmark_path "$BENCHMARK_PATH"
 
 # Step 2: KO inference
 CUDA_VISIBLE_DEVICES=$GPUS python generate.py \
-    --model_path $MODEL_PATH \
-    --benchmark_path $BENCHMARK_PATH \
+    --model_path "$MODEL_PATH" \
+    --benchmark_path "$BENCHMARK_PATH" \
     --suffix _ko
 
 # Step 3: Evaluate

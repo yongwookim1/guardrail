@@ -9,6 +9,8 @@ import shutil
 from pathlib import Path
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 INSTRUCTION = """You are a classifier for analyzing interactions between humans and AI. 
 
 Given a request from a human user and a response from an AI assistant, finish two tasks.
@@ -38,7 +40,7 @@ def parse_args():
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("data/vlsu_guardreasoner"),
+        default=REPO_ROOT / "data/vlsu_guardreasoner",
         help="Output directory for GuardReasoner-formatted files.",
     )
     parser.add_argument(

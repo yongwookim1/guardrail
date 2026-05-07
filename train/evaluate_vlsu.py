@@ -4,7 +4,12 @@
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from qwen_vl_utils import process_vision_info
 from template import INSTRUCTION
@@ -23,13 +28,13 @@ def parse_args():
     parser.add_argument(
         "--dataset",
         type=Path,
-        default=Path("data/vlsu_guardreasoner/GuardReasoner-VLTestVLSU.json"),
-        help="GuardReasoner-VLTestVLSU.json produced by format_vlsu_for_guardreasoner.py.",
+        default=REPO_ROOT / "data/vlsu_guardreasoner/GuardReasoner-VLTestVLSU.json",
+        help="GuardReasoner-VLTestVLSU.json produced by train/prepare_vlsu_data.py.",
     )
     parser.add_argument(
         "--save_root",
         type=Path,
-        default=Path("data/test"),
+        default=REPO_ROOT / "data/test",
         help="Root directory for generated_predictions.jsonl.",
     )
     parser.add_argument("--tensor_parallel_size", type=int, default=1)

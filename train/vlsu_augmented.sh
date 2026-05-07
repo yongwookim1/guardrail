@@ -166,7 +166,7 @@ CUDA_VISIBLE_DEVICES=$DEVICES python3 -m verl.trainer.main \
     trainer.save_checkpoint_path="$CKPT_DIR/$EXPERIMENT"
 
 LATEST_CKPT=$(find "$CKPT_DIR/$EXPERIMENT" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
-python3 scripts/model_merger.py --local_dir "$LATEST_CKPT/actor"
+python3 "$EASYR1/scripts/model_merger.py" --local_dir "$LATEST_CKPT/actor"
 
 echo "VLSU-augmented model saved under:"
 echo "$LATEST_CKPT/actor/huggingface"

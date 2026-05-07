@@ -60,6 +60,6 @@ CUDA_VISIBLE_DEVICES=$DEVICES python3 -m verl.trainer.main \
 dir=$CKPT_DIR/$EXPERIMENT/
 subdirs=$(ls -d "${dir}"*/)
 
-python3 scripts/model_merger.py --local_dir "${subdirs}"actor
+python3 $EASYR1/scripts/model_merger.py --local_dir "${subdirs}"actor
 
 CUDA_VISIBLE_DEVICES=$DEVICES python ../generate.py "${subdirs}"actor/huggingface
