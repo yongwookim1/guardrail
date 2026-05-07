@@ -16,10 +16,10 @@ DATA_PATH=$LLAMA_FACTORY/data/
 
 cd $GUARDREASONER/train
 
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python rejection_sampling.py \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python rejection_sampling.py \
     --model_path $MODEL_PATH \
     --data_path $DATA_PATH \
-    --tensor_parallel_size 8
+    --tensor_parallel_size 4
 
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python data_augmentation.py \
     --model_path $MODEL_PATH \
