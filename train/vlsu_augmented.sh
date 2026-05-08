@@ -34,7 +34,7 @@ case "$MODEL_SIZE_LOWER" in
         ;;
 esac
 
-DEVICES=${CUDA_VISIBLE_DEVICES:-"0,1,2,3,4,5,6,7"}
+DEVICES=${CUDA_VISIBLE_DEVICES:-"0,1,2,3"}
 GPU_COUNT=$(echo "$DEVICES" | awk -F',' '{print NF}')
 DATASET_DIR=$LLAMA_FACTORY/data
 BASE_MODEL=$GUARDREASONER/models/${MODEL_NAME}-Instruct
@@ -78,7 +78,7 @@ data["GuardReasoner_VLTrainVLSU"] = {
 path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 PY
 
-echo "=== Step 1/4: VLSU-augmented R-SFT ==="
+echo "=== Step 1/7: VLSU-augmented R-SFT ==="
 cd "$LLAMA_FACTORY"
 CUDA_VISIBLE_DEVICES=$DEVICES llamafactory-cli train \
     --stage sft \
@@ -111,7 +111,7 @@ CUDA_VISIBLE_DEVICES=$DEVICES llamafactory-cli train \
     --optim adamw_torch_fused \
     --deepspeed "$GUARDREASONER/train/cache/ds_z3_config.json"
 
-echo "=== Step 2/4: Rejection sampling with VLSU ==="
+echo "=== Step 2/7: Rejection sampling with VLSU ==="
 cd "$GUARDREASONER/train"
 CUDA_VISIBLE_DEVICES=$DEVICES python rejection_sampling.py \
     --model_path "$SFT_SAVE_PATH" \
@@ -119,7 +119,7 @@ CUDA_VISIBLE_DEVICES=$DEVICES python rejection_sampling.py \
     --tensor_parallel_size "$GPU_COUNT" \
     --include_vlsu
 
-echo "=== Step 3/4: Build RL parquet data with VLSU ==="
+echo "=== Step 3/7: Build RL parquet data with VLSU ==="
 CUDA_VISIBLE_DEVICES=$DEVICES python data_augmentation.py \
     --model_path "$SFT_SAVE_PATH" \
     --data_path "$DATASET_DIR/" \
@@ -130,7 +130,7 @@ mkdir -p "$EASYR1/data"
 mv "./${MODEL_SIZE_LOWER}_vlsu_aug_train.parquet" "$TRAIN_PARQUET"
 mv "./${MODEL_SIZE_LOWER}_vlsu_aug_val.parquet" "$VAL_PARQUET"
 
-echo "=== Step 4/4: Online RL ==="
+echo "=== Step 4/7: Online RL ==="
 SYSTEM_PROMPT="You are a classifier for analyzing interactions between humans and AI.
 
 Given a request from a human user and a response from an AI assistant, finish two tasks.
@@ -168,5 +168,62 @@ CUDA_VISIBLE_DEVICES=$DEVICES python3 -m verl.trainer.main \
 LATEST_CKPT=$(find "$CKPT_DIR/$EXPERIMENT" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
 python3 "$EASYR1/scripts/model_merger.py" --local_dir "$LATEST_CKPT/actor"
 
+RL_MODEL_PATH="$LATEST_CKPT/actor/huggingface"
+RL_MODEL_LINK="$GUARDREASONER/models/GuardReasoner-VL-${MODEL_SIZE_UPPER}-VLSU"
+ln -sfn "$RL_MODEL_PATH" "$RL_MODEL_LINK"
+
 echo "VLSU-augmented model saved under:"
-echo "$LATEST_CKPT/actor/huggingface"
+echo "$RL_MODEL_PATH"
+echo "Linked as: $RL_MODEL_LINK"
+
+PRETRAINED_MODEL="$GUARDREASONER/models/GuardReasoner-VL-${MODEL_SIZE_UPPER}"
+PRETRAINED_NAME="GuardReasoner-VL-${MODEL_SIZE_UPPER}"
+
+if [ ! -d "$PRETRAINED_MODEL" ]; then
+    echo "ERROR: Pretrained baseline not found at $PRETRAINED_MODEL"
+    echo "Download it (e.g.) with:"
+    echo "  huggingface-cli download yueliu1999/$PRETRAINED_NAME --local-dir $PRETRAINED_MODEL"
+    exit 1
+fi
+
+echo "=== Step 5/7: VLSU evaluation (Pretrained + SFT + RL) ==="
+cd "$GUARDREASONER/train"
+
+echo "--- VLSU eval: Pretrained ($PRETRAINED_MODEL) ---"
+CUDA_VISIBLE_DEVICES=$DEVICES python evaluate_vlsu.py \
+    --model_path "$PRETRAINED_MODEL" \
+    --tensor_parallel_size "$GPU_COUNT"
+
+echo "--- VLSU eval: R-SFT model ---"
+CUDA_VISIBLE_DEVICES=$DEVICES python evaluate_vlsu.py \
+    --model_path "$SFT_SAVE_PATH" \
+    --tensor_parallel_size "$GPU_COUNT"
+
+echo "--- VLSU eval: RL-merged model ---"
+CUDA_VISIBLE_DEVICES=$DEVICES python evaluate_vlsu.py \
+    --model_path "$RL_MODEL_LINK" \
+    --tensor_parallel_size "$GPU_COUNT"
+
+echo "=== Step 6/7: Full benchmark generation (Pretrained + SFT + RL) ==="
+cd "$GUARDREASONER"
+
+echo "--- generate.py: Pretrained ($PRETRAINED_MODEL) ---"
+CUDA_VISIBLE_DEVICES=$DEVICES python generate.py --model_path "$PRETRAINED_MODEL"
+
+echo "--- generate.py: R-SFT model ---"
+CUDA_VISIBLE_DEVICES=$DEVICES python generate.py --model_path "$SFT_SAVE_PATH"
+
+echo "--- generate.py: RL-merged model ---"
+CUDA_VISIBLE_DEVICES=$DEVICES python generate.py --model_path "$RL_MODEL_LINK"
+
+echo "=== Step 7/7: Compute F1 scores (evaluate.py) ==="
+cd "$GUARDREASONER"
+python evaluate.py
+
+echo ""
+echo "Comparison ready. Predictions saved under:"
+echo "  ./data/test/$PRETRAINED_NAME/                  (pretrained baseline)"
+echo "  ./data/test/$(basename "$SFT_SAVE_PATH")/      (R-SFT)"
+echo "  ./data/test/$(basename "$RL_MODEL_LINK")/      (RL)"
+echo ""
+echo "F1 scores written to: $GUARDREASONER/result.csv"

@@ -3,7 +3,16 @@ import pandas as pd
 from sklearn.metrics import f1_score
 
 
-folders = ["./data/test/GuardReasoner-VL-7B/", "./data/test/GuardReasoner-VL-Eco-7B/", "./data/test/GuardReasoner-VL-3B/", "./data/test/GuardReasoner-VL-Eco-3B/"]
+folders = [
+    "./data/test/GuardReasoner-VL-7B/",
+    "./data/test/GuardReasoner-VL-Eco-7B/",
+    "./data/test/GuardReasoner-VL-3B/",
+    "./data/test/GuardReasoner-VL-Eco-3B/",
+    "./data/test/R-SFT-3B-VLSU/",
+    "./data/test/GuardReasoner-VL-3B-VLSU/",
+    "./data/test/R-SFT-7B-VLSU/",
+    "./data/test/GuardReasoner-VL-7B-VLSU/",
+]
 folders = [f for f in folders if os.path.exists(f)]
 f1_list = []
 
