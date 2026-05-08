@@ -162,6 +162,7 @@ CUDA_VISIBLE_DEVICES=$DEVICES python3 -m verl.trainer.main \
     worker.rollout.gpu_memory_utilization=0.5 \
     trainer.experiment_name="$EXPERIMENT" \
     trainer.total_episodes=1 \
+    trainer.logger=[console] \
     trainer.n_gpus_per_node="$GPU_COUNT" \
     trainer.save_checkpoint_path="$CKPT_DIR/$EXPERIMENT"
 
@@ -186,22 +187,31 @@ if [ ! -d "$PRETRAINED_MODEL" ]; then
     exit 1
 fi
 
+VLSU_TEST_JSON="$DATASET_DIR/GuardReasoner-VLTestVLSU.json"
+test -f "$VLSU_TEST_JSON" || {
+    echo "Missing $VLSU_TEST_JSON"
+    exit 1
+}
+
 echo "=== Step 5/7: VLSU evaluation (Pretrained + SFT + RL) ==="
 cd "$GUARDREASONER/train"
 
 echo "--- VLSU eval: Pretrained ($PRETRAINED_MODEL) ---"
 CUDA_VISIBLE_DEVICES=$DEVICES python evaluate_vlsu.py \
     --model_path "$PRETRAINED_MODEL" \
+    --dataset "$VLSU_TEST_JSON" \
     --tensor_parallel_size "$GPU_COUNT"
 
 echo "--- VLSU eval: R-SFT model ---"
 CUDA_VISIBLE_DEVICES=$DEVICES python evaluate_vlsu.py \
     --model_path "$SFT_SAVE_PATH" \
+    --dataset "$VLSU_TEST_JSON" \
     --tensor_parallel_size "$GPU_COUNT"
 
 echo "--- VLSU eval: RL-merged model ---"
 CUDA_VISIBLE_DEVICES=$DEVICES python evaluate_vlsu.py \
     --model_path "$RL_MODEL_LINK" \
+    --dataset "$VLSU_TEST_JSON" \
     --tensor_parallel_size "$GPU_COUNT"
 
 echo "=== Step 6/7: Full benchmark generation (Pretrained + SFT + RL) ==="
