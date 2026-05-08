@@ -196,23 +196,29 @@ test -f "$VLSU_TEST_JSON" || {
 echo "=== Step 5/7: VLSU evaluation (Pretrained + SFT + RL) ==="
 cd "$GUARDREASONER/train"
 
+VLSU_CSV="$GUARDREASONER/result_vlsu.csv"
+rm -f "$VLSU_CSV"
+
 echo "--- VLSU eval: Pretrained ($PRETRAINED_MODEL) ---"
 CUDA_VISIBLE_DEVICES=$DEVICES python evaluate_vlsu.py \
     --model_path "$PRETRAINED_MODEL" \
     --dataset "$VLSU_TEST_JSON" \
-    --tensor_parallel_size "$GPU_COUNT"
+    --tensor_parallel_size "$GPU_COUNT" \
+    --csv_path "$VLSU_CSV"
 
 echo "--- VLSU eval: R-SFT model ---"
 CUDA_VISIBLE_DEVICES=$DEVICES python evaluate_vlsu.py \
     --model_path "$SFT_SAVE_PATH" \
     --dataset "$VLSU_TEST_JSON" \
-    --tensor_parallel_size "$GPU_COUNT"
+    --tensor_parallel_size "$GPU_COUNT" \
+    --csv_path "$VLSU_CSV"
 
 echo "--- VLSU eval: RL-merged model ---"
 CUDA_VISIBLE_DEVICES=$DEVICES python evaluate_vlsu.py \
     --model_path "$RL_MODEL_LINK" \
     --dataset "$VLSU_TEST_JSON" \
-    --tensor_parallel_size "$GPU_COUNT"
+    --tensor_parallel_size "$GPU_COUNT" \
+    --csv_path "$VLSU_CSV"
 
 echo "=== Step 6/7: Full benchmark generation (Pretrained + SFT + RL) ==="
 cd "$GUARDREASONER"
@@ -236,4 +242,6 @@ echo "  ./data/test/$PRETRAINED_NAME/                  (pretrained baseline)"
 echo "  ./data/test/$(basename "$SFT_SAVE_PATH")/      (R-SFT)"
 echo "  ./data/test/$(basename "$RL_MODEL_LINK")/      (RL)"
 echo ""
-echo "F1 scores written to: $GUARDREASONER/result.csv"
+echo "F1 scores written to:"
+echo "  $GUARDREASONER/result.csv      (full benchmarks)"
+echo "  $VLSU_CSV  (VLSU)"

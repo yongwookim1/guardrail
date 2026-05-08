@@ -41,6 +41,12 @@ def parse_args():
     parser.add_argument("--gpu_memory_utilization", type=float, default=0.70)
     parser.add_argument("--max_num_seqs", type=int, default=256)
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument(
+        "--csv_path",
+        type=Path,
+        default=None,
+        help="If set, append a VLSU result row to this CSV file.",
+    )
     return parser.parse_args()
 
 
@@ -163,6 +169,18 @@ def main() -> None:
     print(f"precision: {precision * 100:.2f}")
     print(f"recall:    {recall * 100:.2f}")
     print(f"f1:        {f1 * 100:.2f}")
+
+    if args.csv_path is not None:
+        args.csv_path.parent.mkdir(parents=True, exist_ok=True)
+        write_header = not args.csv_path.exists() or args.csv_path.stat().st_size == 0
+        with args.csv_path.open("a", encoding="utf-8") as file:
+            if write_header:
+                file.write("section,model,rows,accuracy,precision,recall,f1\n")
+            file.write(
+                f"VLSU,{model_name},{len(save_rows)},"
+                f"{accuracy * 100:.2f},{precision * 100:.2f},"
+                f"{recall * 100:.2f},{f1 * 100:.2f}\n"
+            )
 
 
 if __name__ == "__main__":
