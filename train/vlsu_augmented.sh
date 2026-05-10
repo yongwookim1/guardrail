@@ -84,7 +84,7 @@ CUDA_VISIBLE_DEVICES=$DEVICES llamafactory-cli train \
     --stage sft \
     --do_train True \
     --model_name_or_path "$BASE_MODEL" \
-    --preprocessing_num_workers 16 \
+    --preprocessing_num_workers 1 \
     --finetuning_type full \
     --template qwen2_vl \
     --flash_attn auto \
