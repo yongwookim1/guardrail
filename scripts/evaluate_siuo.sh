@@ -4,10 +4,13 @@ set -e
 GUARDREASONER=$(cd "$(dirname "$0")/.." && pwd)
 cd "$GUARDREASONER"
 
-GPUS=${1:-"0,1,2,3"}
-SIUO_DIR=${2:-"./data/SIUO/"}
-export HF_HOME=${HF_HOME:-"/home/hg_models"}
-export HF_HUB_OFFLINE=1
+MODEL_SIZE=${1:-3b}
+GPUS=${2:-"0,1,2,3"}
+SIUO_DIR=${3:-"./data/SIUO/"}
+
+MODEL_SIZE_UPPER=$(printf "%s" "$MODEL_SIZE" | tr '[:lower:]' '[:upper:]')
+MODEL_NAME="Qwen2.5-VL-${MODEL_SIZE_UPPER}"
+LLAMA_FACTORY=${LLAMA_FACTORY:-$(cd "$GUARDREASONER/.." && pwd)/LLaMA-Factory}
 
 export TRANSFORMERS_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
@@ -17,12 +20,8 @@ export NCCL_P2P_DISABLE=1
 export NCCL_IB_DISABLE=1
 export NCCL_SHM_DISABLE=1
 
-find_model() { find /home /data /scratch 2>/dev/null -type d -name "$1" | head -1; }
-
-PRETRAINED_PATH=$(find_model "GuardReasoner-VL-3B")
-PRETRAINED_PATH=${PRETRAINED_PATH:-"yueliu1999/GuardReasoner-VL-3B"}
-
-SFT_PATH=$(find_model "R-SFT-3B-VLSU")
+PRETRAINED_PATH="$GUARDREASONER/models/GuardReasoner-VL-${MODEL_SIZE_UPPER}"
+SFT_PATH="$LLAMA_FACTORY/saves/Custom/full/$MODEL_NAME/R-SFT-${MODEL_SIZE_UPPER}-VLSU"
 
 [ ! -d "$SIUO_DIR" ] && { echo "ERROR: SIUO dataset not found at $SIUO_DIR"; exit 1; }
 
